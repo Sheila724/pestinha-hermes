@@ -62,6 +62,7 @@ from .core.homeostasis import Drives
 from .core.nervous_system import LIFBrain
 from .core.protesto import Protesto
 from .log import log
+from .mind import obediencia
 from .mind.castigo_ctl import CastigoController
 from .mind.festa import FestaController
 from .mind.mesa import MesaController, pull
@@ -258,8 +259,32 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         for tipo, texto in self.hermes.coletar():
             if tipo in ("falar", "resposta", "erro"):
                 self.mostrar_fala(texto)
+            elif tipo == "acao":
+                self.pedido_do_hermes(texto)
             elif tipo == "humor":
                 log(f"[hermes] humor recebido (ainda sem efeito): {texto}")
+
+    def estado_para_hermes(self):
+        """Como o pet está agora, para o Hermes falar no tom certo (só emoção e energia, nada da sua tela)."""
+        return {"emocao": self.emotion.current, "energia": round(self.drives.energy, 2),
+                "dormindo": bool(self.asleep)}
+
+    def pedido_do_hermes(self, acao):
+        """O Hermes pediu algo ao corpo: o instinto decide se obedece; se não, diz por quê num post-it."""
+        perms = self.perms
+        if (acao == "bolinha" and not perms["bolinha"]) or (acao == "travessura" and not perms["travessuras"]):
+            self.mostrar_fala("Isso está desligado nas Configurações.")
+            return
+        obedece, fala = obediencia.decidir(acao, self.emotion.current, self.drives.energy, self.asleep)
+        log(f"[hermes] pedido '{acao}' com emoção {self.emotion.current}: {'obedeceu' if obedece else 'recusou'}")
+        if not obedece:
+            if fala:
+                self.mostrar_fala(fala)
+            return
+        executar = {"dormir": self.menu_sleep, "bolinha": self.menu_place_ball,
+                    "travessura": self.menu_mischief, "trabalhar": self.menu_pedir_trabalho}.get(acao)
+        if executar:
+            executar()
 
     def mostrar_fala(self, texto):
         """Post-it com a fala logo acima do pet."""
