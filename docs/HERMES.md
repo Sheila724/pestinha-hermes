@@ -51,6 +51,21 @@ A ponte guarda uma **memória curta** (as últimas 8 mensagens, esquecidas depoi
 conversa), inclusive as falas que o pet mandou sozinho, como os avisos de clima. Assim dá para conversar
 em vez de fazer perguntas soltas. **Começar conversa nova**, no menu, apaga essa memória.
 
+## Pesquisar na internet
+
+Para coisas atuais (notícias, resultados, preços, horários), o Hermes pode pesquisar na web com as
+ferramentas `web_search` e `web_extract`. É configuração do Hermes, na VPS:
+
+```bash
+hermes config set TAVILY_API_KEY tvly-...      # chave grátis em tavily.com (1.000 créditos/mês)
+hermes config set web.backend tavily
+hermes doctor                                   # web_search e web_extract devem aparecer prontos
+systemctl --user restart hermes-gateway
+```
+
+A persona pede para pesquisar só quando precisa de algo atual e responder só o principal, no post-it.
+Uma pergunta que pesquisa demora mais (o pet espera até 150 s) e gasta mais tokens.
+
 ## Dois cérebros: instinto e razão
 
 O pet tem dois cérebros. A **rede neural local** é o instinto: decide o que ele sente. O **Hermes** é a
