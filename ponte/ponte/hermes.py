@@ -6,10 +6,12 @@ class HermesErro(Exception):
     """O Hermes não respondeu ou respondeu algo que não dá para usar."""
 
 
-def perguntar(cfg, texto):
+def perguntar(cfg, texto, historico=()):
+    """Manda `texto` ao Hermes, com a persona e (opcional) as últimas trocas da conversa antes dele."""
     mensagens = []
     if cfg.persona:
         mensagens.append({"role": "system", "content": cfg.persona})
+    mensagens.extend(historico)
     mensagens.append({"role": "user", "content": texto})
     cabecalhos = {"Content-Type": "application/json"}
     if cfg.hermes_key:

@@ -151,7 +151,8 @@ class InteracaoMixin:
              self.menu_alternar_notebook)
         item("Fazer uma travessura agora", self.menu_mischief, perms["travessuras"])
         if getattr(self, "hermes", None):
-            item("Perguntar ao Hermes...", self.menu_perguntar_hermes, not self._congelado())
+            item("Conversar  (clique duplo · Ctrl+Alt+P)", self.menu_perguntar_hermes, not self._congelado())
+            item("Começar conversa nova", self.hermes.esquecer_conversa)
             item("Minha cidade e horários...", self.menu_cidade_hermes)
             item("Ler meu diário...", self.hermes.ler_diario)
         menu.addSeparator()
@@ -165,13 +166,8 @@ class InteracaoMixin:
         menu.exec(pos)
 
     def menu_perguntar_hermes(self):
-        """Menu: abre uma caixinha de texto e manda a pergunta ao Hermes; a resposta chega como post-it."""
-        texto, ok = QInputDialog.getText(None, self.nome, "O que você quer me perguntar?")
-        texto = texto.strip() if ok else ""
-        if texto:
-            self.hermes.perguntar(texto, self.estado_para_hermes())
-            self.contar_no_diario("perguntas")
-            self.mostrar_fala("Hmm… deixa eu pensar!")
+        """Menu: abre o balão de conversa (o mesmo do clique duplo e do Ctrl+Alt+P)."""
+        self.abrir_conversa()
 
     def menu_cidade_hermes(self):
         """Menu: cidade e horários de entrada e saída, para ele comentar o clima, a sexta-feira e os feriados."""

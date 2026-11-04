@@ -5,6 +5,7 @@ Rotas:
   GET  /saude              sem token; para monitoramento
   GET  /api/eventos        o pet pergunta "tem algo novo depois do id N?" (polling)
   POST /api/perguntar      você clica no pet, digita, e o Hermes responde
+  POST /api/conversa/esquecer  começa uma conversa nova (a memória curta some)
   GET  /api/perfil         cidade e horários escolhidos (para os avisos do lado de fora)
   POST /api/perfil         escolhe a cidade ("Franca, SP", "Lisboa") e os horários de entrada e saída
   POST /api/dia            o pet manda o resumo do dia dele (emoções e contagens) para o diário
@@ -22,6 +23,7 @@ from pydantic import BaseModel, Field
 
 from . import config as config_mod
 from . import acoes, clima, hermes
+from .conversa import Conversa
 from .diario import Diario, limpar_resumo
 from .eventos import Eventos
 from .perfil import PADRAO, Perfil, hora_valida
@@ -39,6 +41,7 @@ class EstadoPet(BaseModel):
 class Pergunta(BaseModel):
     texto: str = Field(min_length=1, max_length=500)
     estado: EstadoPet | None = None
+    respondendo: str = Field(default="", max_length=500)   # o post-it do pet que a pessoa está respondendo
 
 
 class NovoPerfil(BaseModel):
@@ -65,6 +68,7 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar):
     eventos = Eventos(cfg.banco)
     perfil = Perfil(cfg.banco)
     diario = Diario(cfg.banco)
+    conversa = Conversa(cfg.banco)
     app = FastAPI(title="Ponte do Pestinha", docs_url=None, redoc_url=None, openapi_url=None)
 
     def autorizado(request: Request):
@@ -89,17 +93,32 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar):
 
     @app.post("/api/perguntar", dependencies=[Depends(autorizado)])
     def perguntar(p: Pergunta):
-        contexto = acoes.descrever_estado(p.estado.model_dump() if p.estado else None)
+        historico = conversa.recente()
+        linhas = [acoes.descrever_estado(p.estado.model_dump() if p.estado else None)]
+        respondendo = p.respondendo.strip()
+        lembra = any(m["role"] == "assistant" and m["content"] == respondendo for m in historico)
+        if respondendo and not lembra:              # o post-it é antigo ou a memória curta já esqueceu
+            linhas.append(f'[Respondendo ao seu post-it: "{respondendo}"]')
+        linhas.append(p.texto)
         try:
-            bruta = hermes.perguntar(cfg, f"{contexto}\n{p.texto}" if contexto else p.texto)
+            bruta = hermes.perguntar(cfg, "\n".join(x for x in linhas if x), historico)
         except hermes.HermesErro as erro:
             log.warning("Hermes falhou: %s", erro)
             raise HTTPException(status_code=502, detail="o Hermes não respondeu agora")
         texto, acao = acoes.separar_acao(bruta)
+        if respondendo and not lembra:
+            conversa.anotar("assistant", respondendo)
+        conversa.anotar("user", p.texto)
+        conversa.anotar("assistant", texto)
         resposta = {"resposta": texto or "…"}
         if acao:
             resposta["acao"] = acao
         return resposta
+
+    @app.post("/api/conversa/esquecer", dependencies=[Depends(autorizado)])
+    def esquecer_conversa():
+        conversa.esquecer()
+        return {"ok": True}
 
     @app.get("/api/perfil", dependencies=[Depends(autorizado)])
     def ver_perfil():
@@ -133,6 +152,7 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar):
             if not e.texto.strip():
                 raise HTTPException(status_code=422, detail="texto vazio")
             dados = {"texto": e.texto.strip()}
+            conversa.anotar("assistant", dados["texto"])       # dá para responder ao que ele disse sozinho
         elif e.tipo == "humor":
             if not e.humor.strip():
                 raise HTTPException(status_code=422, detail="humor vazio")

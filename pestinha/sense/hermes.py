@@ -97,15 +97,17 @@ class ClienteHermes:
             except queue.Empty:
                 return itens
 
-    def perguntar(self, texto, estado=None):
+    def perguntar(self, texto, estado=None, respondendo=""):
         """
         Manda a pergunta em segundo plano; a resposta chega depois em coletar() como "resposta" ou "erro"
-        (e "acao", se o Hermes pediu algo ao corpo). `estado` conta ao Hermes como o pet está agora.
+        (e "acao", se o Hermes pediu algo ao corpo). `estado` conta ao Hermes como o pet está agora;
+        `respondendo` é o post-it dele que você está respondendo.
         """
         texto = str(texto).strip()[:500]
         if not texto:
             return
-        threading.Thread(target=self._perguntar, args=(texto, estado), name="hermes-pergunta", daemon=True).start()
+        threading.Thread(target=self._perguntar, args=(texto, estado, str(respondendo or "").strip()[:500]),
+                         name="hermes-pergunta", daemon=True).start()
 
     def configurar_perfil(self, cidade, entrada, saida):
         """
@@ -122,6 +124,17 @@ class ClienteHermes:
         t.start()
         if esperar:
             t.join(timeout=3.0)
+
+    def esquecer_conversa(self):
+        """Começa uma conversa nova: a memória curta da ponte some. Confirma com um post-it."""
+        threading.Thread(target=self._esquecer, name="hermes-esquecer", daemon=True).start()
+
+    def _esquecer(self):
+        try:
+            self._pedido("/api/conversa/esquecer", {})
+            self._chegou.put(("falar", "Pronto, página virada! Sobre o que a gente conversa agora?"))
+        except (OSError, urllib.error.URLError, ValueError, KeyError, TypeError):
+            self._chegou.put(("erro", "Não consegui falar com a VPS."))
 
     def ler_diario(self):
         """Busca as últimas páginas do diário; chegam em coletar() como ("diario", texto) ou ("erro", ...)."""
@@ -197,10 +210,12 @@ class ClienteHermes:
             self._gravar_ultimo()
         return True
 
-    def _perguntar(self, texto, estado=None):
+    def _perguntar(self, texto, estado=None, respondendo=""):
         corpo = {"texto": texto}
         if estado:
             corpo["estado"] = estado
+        if respondendo:
+            corpo["respondendo"] = respondendo
         try:
             dados = self._pedido("/api/perguntar", corpo, timeout=TIMEOUT_PERGUNTA)
             resposta = dados["resposta"]

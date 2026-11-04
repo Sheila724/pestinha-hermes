@@ -75,7 +75,8 @@ from .paths import Paths
 from .sense import hermes, senses
 from .sense.timeline import TimelineRecorder
 from .ui.float_manager import FloatManager
-from .ui.ui import PanicHotkey, Tray
+from .ui.balao import BalaoDeConversa
+from .ui.ui import ConversaHotkey, PanicHotkey, Tray
 from .world.mischief import MischiefEngine
 
 MAX_DT = 2.0          # s: um atraso maior que isso (suspensão) não vira tempo de rede
@@ -231,7 +232,14 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.hermes = hermes.ClienteHermes.de_arquivo(self.paths.hermes, self.paths.hermes_ultimo, avisar=log)
         self.diario = DiarioDoDia(self.paths.diario_hoje) if self.hermes else None
         self._diario_amostra = self._diario_envio = time.monotonic()
+        self.balao = self.atalho_conversa = None
         if self.hermes:
+            self.balao = BalaoDeConversa(self.nome)
+            self.balao.enviado.connect(self.enviar_ao_hermes)
+            self.pet.conversar.connect(self.abrir_conversa)
+            self.mischief.fala_clicada.connect(self.abrir_conversa)
+            self.atalho_conversa = ConversaHotkey()
+            self.atalho_conversa.pressed.connect(self.abrir_conversa)
             self.hermes.iniciar()
             self._timer(HERMES_MS, self.receber_hermes)
             log(f"[hermes] ligado: {self.hermes.url}")
@@ -270,6 +278,21 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
                 self.mostrar_diario(texto)
             elif tipo == "humor":
                 log(f"[hermes] humor recebido (ainda sem efeito): {texto}")
+
+    def abrir_conversa(self, respondendo=""):
+        """Abre o balão de conversa em cima do pet (clique duplo, Ctrl+Alt+P, ou clique num post-it dele)."""
+        if not self.balao or self._congelado():
+            return
+        if self.hidden:
+            self.toggle_hidden()                 # chamou pelo atalho com ele escondido: ele volta para conversar
+        body = self.pet.body
+        self.balao.abrir(body.x, body.y - 70, self.bounds(), respondendo)
+
+    def enviar_ao_hermes(self, texto, respondendo=""):
+        """O que você escreveu no balão vai para o Hermes, com o humor do pet e o post-it que você respondeu."""
+        self.hermes.perguntar(texto, self.estado_para_hermes(), respondendo)
+        self.contar_no_diario("perguntas")
+        self.mostrar_fala("Hmm… deixa eu pensar!")
 
     def anotar_diario(self, forcar_envio=False):
         """Amostra o estado para o diário do dia e, de tempos em tempos, manda o resumo para a ponte."""

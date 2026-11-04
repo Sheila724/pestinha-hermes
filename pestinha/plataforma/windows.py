@@ -21,6 +21,7 @@ SHELL_CLASSES = {"Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd"
 MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_NOREPEAT = 0x1, 0x2, 0x4, 0x4000
 WM_HOTKEY = 0x0312
 HOTKEY_ID = 0xB0DD
+HOTKEY_CONVERSA_ID = 0xB0DE
 
 CHAVE_INICIO = r"Software\Microsoft\Windows\CurrentVersion\Run"
 VALOR_INICIO = "Pestinha"
@@ -193,7 +194,7 @@ def definir_inicio_com_sistema(ligado):
     return True
 
 
-def iniciar_atalho(callback):
+def _registrar_atalho(callback, modificadores, tecla, ident, nome):
     """RegisterHotKey numa thread com fila de mensagens própria. Devolve True se conseguiu."""
     pronto = threading.Event()
     resultado = {"ok": False}
@@ -201,18 +202,26 @@ def iniciar_atalho(callback):
     def laco():
         """Laço da thread que registra o atalho e recebe as teclas do sistema."""
         user32 = ctypes.windll.user32
-        resultado["ok"] = bool(user32.RegisterHotKey(
-            None, HOTKEY_ID, MOD_CONTROL | MOD_ALT | MOD_SHIFT | MOD_NOREPEAT, ord("B")
-        ))
+        resultado["ok"] = bool(user32.RegisterHotKey(None, ident, modificadores | MOD_NOREPEAT, ord(tecla)))
         pronto.set()
         if not resultado["ok"]:
-            log("[pânico] não deu para registrar o atalho (outro programa usa?)")
+            log(f"[{nome}] não deu para registrar o atalho (outro programa usa?)")
             return
         msg = wintypes.MSG()
         while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
-            if msg.message == WM_HOTKEY and msg.wParam == HOTKEY_ID:
+            if msg.message == WM_HOTKEY and msg.wParam == ident:
                 callback()
 
     threading.Thread(target=laco, daemon=True).start()
     pronto.wait(2.0)
     return resultado["ok"]
+
+
+def iniciar_atalho(callback):
+    """Atalho de pânico: Ctrl+Alt+Shift+B. Devolve True se conseguiu."""
+    return _registrar_atalho(callback, MOD_CONTROL | MOD_ALT | MOD_SHIFT, "B", HOTKEY_ID, "pânico")
+
+
+def iniciar_atalho_conversa(callback):
+    """Atalho do balão de conversa com o Hermes: Ctrl+Alt+P. Devolve True se conseguiu."""
+    return _registrar_atalho(callback, MOD_CONTROL | MOD_ALT, "P", HOTKEY_CONVERSA_ID, "conversa")

@@ -63,6 +63,7 @@ class PetWindow(QWidget):
     drag_ended = Signal()
     thrown = Signal(float)          # velocidade do arremesso (px/s)
     menu_requested = Signal(object) # botão direito: posição global do clique
+    conversar = Signal()            # clique duplo: abrir o balão de conversa
 
     def __init__(self, x, y, state):
         """Janela transparente do pet: o rosto é desenhado aqui e o mouse vira gestos (cutucar, arrastar, arremessar)."""
@@ -235,6 +236,11 @@ class PetWindow(QWidget):
             self.poked.emit()
         self._press = None
         self._dragging = False
+
+    def mouseDoubleClickEvent(self, event):
+        """Clique duplo: pede ao app para abrir o balão de conversa (o primeiro clique já foi uma cutucada)."""
+        if event.button() == Qt.LeftButton:
+            self.conversar.emit()
 
     def contextMenuEvent(self, event):
         """Botão direito: pede ao app para abrir o menu do pet."""

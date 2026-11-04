@@ -68,7 +68,7 @@ def test_interno_recusa_quem_nao_e_local(cfg):
 def test_perguntar_repassa_ao_hermes(cliente, monkeypatch):
     recebido = {}
 
-    def falso(cfg, texto):
+    def falso(cfg, texto, historico=()):
         recebido["texto"] = texto
         return "Miau, sou o Pestinha!"
 
@@ -79,7 +79,7 @@ def test_perguntar_repassa_ao_hermes(cliente, monkeypatch):
 
 
 def test_perguntar_com_hermes_fora(cliente, monkeypatch):
-    def quebrado(cfg, texto):
+    def quebrado(cfg, texto, historico=()):
         raise hermes.HermesErro("conexão recusada")
 
     monkeypatch.setattr(hermes, "perguntar", quebrado)
@@ -147,7 +147,7 @@ def test_descrever_estado():
 def test_perguntar_com_estado_e_acao(cliente, monkeypatch):
     recebido = {}
 
-    def falso(cfg, texto):
+    def falso(cfg, texto, historico=()):
         recebido["texto"] = texto
         return "Hmpf, tá bom.\n[acao: dormir]"
 
@@ -159,7 +159,7 @@ def test_perguntar_com_estado_e_acao(cliente, monkeypatch):
 
 
 def test_perguntar_sem_estado_continua_igual(cliente, monkeypatch):
-    monkeypatch.setattr(hermes, "perguntar", lambda cfg, texto: "oi")
+    monkeypatch.setattr(hermes, "perguntar", lambda cfg, texto, historico=(): "oi")
     assert cliente.post("/api/perguntar", headers=AUTH, json={"texto": "oi"}).json() == {"resposta": "oi"}
 
 

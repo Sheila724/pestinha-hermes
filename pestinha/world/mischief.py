@@ -26,6 +26,7 @@ class MischiefEngine(QObject):
     """Guarda os objetos na tela e decide a próxima travessura."""
 
     dismissed = Signal(object, float)     # (objeto, segundos que ficou na tela)
+    fala_clicada = Signal(str)            # clicaram num post-it do Hermes: o texto dele, para responder
 
     def __init__(self, conteudo):
         """Guarda os objetos na tela (memes, bilhetes, fotos) e o conteúdo do pet para sorteá-los."""
@@ -160,7 +161,7 @@ class MischiefEngine(QObject):
     def mostrar_fala(self, texto, x, y, bounds):
         """Post-it com uma fala (do Hermes) colado perto de (x, y), dentro da tela. Some ao clicar."""
         thing = NoteThing(texto, size=NOTE_SIZE_FALA if len(texto) > 60 else None)
-        thing.clicked.connect(self._on_click)
+        thing.clicked.connect(self._on_fala_click)
         left, top, right, bottom = bounds
         hw, hh = thing.width() / 2, thing.height() / 2
         thing.place(min(max(x, left + hw), right - hw), min(max(y, top + hh), bottom - hh))
@@ -209,6 +210,11 @@ class MischiefEngine(QObject):
         elapsed = time.monotonic() - thing.born
         self._remove(thing)
         self.dismissed.emit(thing, elapsed)
+
+    def _on_fala_click(self, thing):
+        """Clicaram numa fala do Hermes: some e avisa o app (para responder), sem contar como travessura dispensada."""
+        self._remove(thing)
+        self.fala_clicada.emit(thing.text)
 
     def _remove(self, thing):
         """Tira um objeto da tela e da lista."""
