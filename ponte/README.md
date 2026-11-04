@@ -17,9 +17,13 @@ VPN: só precisa de saída HTTPS.
 | Rota | Token | Para quê |
 |---|:-:|---|
 | `GET /saude` | não | Monitoramento |
-| `GET /api/eventos?desde=N` | sim | Eventos com id maior que `N` (`falar` ou `humor`) e o `ultimo` id |
-| `POST /api/perguntar` `{"texto": "..."}` | sim | Pergunta ao Hermes; devolve `{"resposta": "..."}` |
-| `POST /interno/eventos` `{"texto": "..."}` ou `{"tipo": "humor", "humor": "feliz"}` | sim | Só da própria VPS: põe algo na fila do pet |
+| `GET /api/eventos?desde=N` | sim | Eventos com id maior que `N` (`falar`, `humor` ou `acao`) e o `ultimo` id |
+| `POST /api/perguntar` `{"texto": "...", "estado": {...}}` | sim | Pergunta ao Hermes; devolve `{"resposta": "..."}` e, se ele pediu algo ao corpo, `"acao"` |
+| `POST /interno/eventos` `{"texto": "..."}`, `{"tipo": "humor", "humor": "feliz"}` ou `{"tipo": "acao", "acao": "dormir"}` | sim | Só da própria VPS: põe algo na fila do pet |
+
+O `estado` (opcional) é `{"emocao": "bravo", "energia": 0.3, "dormindo": false}`: vira uma linha de contexto
+para o Hermes falar no tom certo. As ações possíveis estão em `ponte/acoes.py`; o Hermes as pede terminando
+a resposta com `[acao: nome]`, e quem decide se obedece é o pet.
 
 Token: `Authorization: Bearer <PONTE_TOKEN>`. O Hermes nunca fica exposto; a persona
 (`ponte/persona.md`) mantém as respostas curtas, do tamanho de um post-it.

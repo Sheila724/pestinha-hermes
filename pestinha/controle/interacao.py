@@ -164,7 +164,7 @@ class InteracaoMixin:
         texto, ok = QInputDialog.getText(None, self.nome, "O que você quer me perguntar?")
         texto = texto.strip() if ok else ""
         if texto:
-            self.hermes.perguntar(texto)
+            self.hermes.perguntar(texto, self.estado_para_hermes())
             self.mostrar_fala("Hmm… deixa eu pensar!")
 
     def menu_poke(self):

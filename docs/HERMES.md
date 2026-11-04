@@ -35,6 +35,22 @@ ilegível ou incompleto, o log diz o motivo.
 - **Sem repetir:** o último evento mostrado fica em `memory/hermes_ultimo.txt`. Na primeira conexão,
   o histórico antigo da fila não é despejado na tela.
 
+## Dois cérebros: instinto e razão
+
+O pet tem dois cérebros. A **rede neural local** é o instinto: decide o que ele sente. O **Hermes** é a
+razão: conversa e pode pedir coisas ao corpo. Um não manda no outro.
+
+- **Do pet para o Hermes:** cada pergunta leva só a emoção, a energia e se ele está dormindo (nada da sua
+  tela). O Hermes responde no tom do momento: emburrado se bravo, manhoso se triste, bocejando se cansado.
+- **Do Hermes para o pet:** quando você pede ("vai dormir", "brinca com a bolinha", "apronta uma",
+  "vem trabalhar"), o Hermes termina a resposta com `[acao: ...]`. A ponte tira essa marca do texto e
+  manda a ação separada. Só existem quatro: `dormir`, `bolinha`, `travessura`, `trabalhar`.
+- **Quem decide é o instinto** (`pestinha/mind/obediencia.py`): bravo recusa 80% das vezes, dramático e
+  assustado 60%, triste 50%, cansado não brinca nem trabalha e dormindo não ouve. Recusando, ele diz por
+  quê num post-it. As permissões das Configurações continuam valendo, e "trabalhar" ainda passa pela
+  rede, que também pode recusar.
+- Scripts na VPS podem pedir uma ação direto: `POST /interno/eventos` com `{"tipo": "acao", "acao": "bolinha"}`.
+
 ## Ainda não
 
 - Eventos `humor` chegam, mas ainda não mexem na emoção do pet (só vão para o log).

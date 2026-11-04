@@ -27,6 +27,7 @@ class PonteFalsa:
         self.resposta = "Miau! Sou o Pestinha."
         self.status_pergunta = 200
         self.perguntas = []
+        self.corpos = []
         fake = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -60,6 +61,7 @@ class PonteFalsa:
                     return
                 corpo = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
                 fake.perguntas.append(corpo["texto"])
+                fake.corpos.append(corpo)
                 if fake.status_pergunta != 200:
                     self._json(fake.status_pergunta, {"detail": "falhou"})
                 else:
@@ -305,5 +307,141 @@ def test_fala_longa_usa_post_it_grande(ponte, tmp_path):
         app.mostrar_fala(hermes.encurtar("frase comprida " * 20))
         curta, longa = app.mischief.things
         assert curta.note_w == NOTE_SIZE[0] and longa.note_w == NOTE_SIZE_FALA[0]
+    finally:
+        _fechar(app)
+
+
+# ---------------- dois cérebros: o instinto decide ----------------
+
+import random  # noqa: E402
+
+from pestinha.mind import obediencia  # noqa: E402
+
+
+class SorteFixa(random.Random):
+    """random() sempre devolve o mesmo valor; choice pega o primeiro."""
+    def __init__(self, valor):
+        super().__init__(0)
+        self.valor = valor
+
+    def random(self):
+        return self.valor
+
+    def choice(self, seq):
+        return seq[0]
+
+
+@pytest.mark.parametrize("emocao", ["feliz", "contente", "curioso", "observando"])
+def test_de_bom_humor_obedece(emocao):
+    for acao in obediencia.ACOES:
+        assert obediencia.decidir(acao, emocao, 0.8, False, SorteFixa(0.0)) == (True, None)
+
+
+def test_bravo_quase_sempre_recusa():
+    obedece, fala = obediencia.decidir("bolinha", "bravo", 0.8, False, SorteFixa(0.5))
+    assert not obedece and fala in obediencia.FALAS_RECUSA["bravo"]
+    assert obediencia.decidir("bolinha", "bravo", 0.8, False, SorteFixa(0.95)) == (True, None)
+
+
+def test_triste_metade_das_vezes():
+    assert obediencia.decidir("trabalhar", "triste", 0.8, False, SorteFixa(0.4))[0] is False
+    assert obediencia.decidir("trabalhar", "triste", 0.8, False, SorteFixa(0.6))[0] is True
+
+
+def test_cansado_nao_brinca_mas_dorme():
+    assert obediencia.decidir("bolinha", "feliz", 0.1, False, SorteFixa(0.0)) == (False, obediencia.FALA_CANSADO[0])
+    assert obediencia.decidir("dormir", "feliz", 0.1, False, SorteFixa(0.0)) == (True, None)
+
+
+def test_dormindo_nao_ouve():
+    assert obediencia.decidir("bolinha", "dormindo", 0.5, True, SorteFixa(0.0)) == (False, "Zzz…")
+    assert obediencia.decidir("dormir", "dormindo", 0.5, True, SorteFixa(0.0))[0] is False
+
+
+def test_acao_desconhecida_ignorada():
+    assert obediencia.decidir("voar", "feliz", 1.0, False, SorteFixa(0.0)) == (False, None)
+
+
+def test_recusas_cabem_no_post_it():
+    falas = [f for grupo in obediencia.FALAS_RECUSA.values() for f in grupo]
+    falas += list(obediencia.FALA_CANSADO) + list(obediencia.FALA_DORMINDO) + list(obediencia.FALA_JA_DORMINDO)
+    assert all(len(f) <= 60 for f in falas)
+
+
+# ---------------- cliente: estado vai, ação volta ----------------
+
+def test_pergunta_leva_o_estado(ponte, tmp_path):
+    ponte.resposta = "Tá bom…"
+    c = cliente(ponte, tmp_path)
+    c.perguntar("vai dormir", {"emocao": "bravo", "energia": 0.3, "dormindo": False})
+    assert esperar(c) == [("resposta", "Tá bom…")]
+    assert ponte.corpos[0]["estado"] == {"emocao": "bravo", "energia": 0.3, "dormindo": False}
+
+
+def test_pergunta_sem_estado_nao_manda_o_campo(ponte, tmp_path):
+    c = cliente(ponte, tmp_path)
+    c.perguntar("oi")
+    esperar(c)
+    assert "estado" not in ponte.corpos[0]
+
+
+def test_resposta_com_acao_e_evento_de_acao(ponte, tmp_path, monkeypatch):
+    c = cliente(ponte, tmp_path)
+    monkeypatch.setattr(c, "_pedido", lambda *a, **k: {"resposta": "Oba!", "acao": "bolinha"})
+    c.perguntar("brinca?")
+    assert esperar(c, n=2) == [("resposta", "Oba!"), ("acao", "bolinha")]
+    monkeypatch.undo()
+    c.consultar()
+    ponte.eventos.append({"id": 1, "tipo": "acao", "acao": "dormir"})
+    c.consultar()
+    assert c.coletar() == [("acao", "dormir")]
+
+
+# ---------------- no app ----------------
+
+def test_app_obedece_de_bom_humor(ponte, tmp_path, monkeypatch):
+    app = _app(tmp_path, com_hermes=True, url=ponte.url)
+    try:
+        chamado = []
+        monkeypatch.setattr(app, "menu_sleep", lambda: chamado.append("dormir"))
+        monkeypatch.setattr(obediencia, "decidir", lambda *a, **k: (True, None))
+        app.hermes._chegou.put(("acao", "dormir"))
+        app.receber_hermes()
+        assert chamado == ["dormir"] and not app.mischief.things
+    finally:
+        _fechar(app)
+
+
+def test_app_recusa_com_post_it(ponte, tmp_path, monkeypatch):
+    app = _app(tmp_path, com_hermes=True, url=ponte.url)
+    try:
+        chamado = []
+        monkeypatch.setattr(app, "menu_pedir_trabalho", lambda: chamado.append("trabalhar"))
+        monkeypatch.setattr(obediencia, "decidir", lambda *a, **k: (False, "Não quero!"))
+        app.hermes._chegou.put(("acao", "trabalhar"))
+        app.receber_hermes()
+        assert chamado == [] and [t.text for t in app.mischief.things] == ["Não quero!"]
+    finally:
+        _fechar(app)
+
+
+def test_app_respeita_as_permissoes(ponte, tmp_path, monkeypatch):
+    app = _app(tmp_path, com_hermes=True, url=ponte.url)
+    try:
+        monkeypatch.setitem(app.perms, "travessuras", False)
+        chamado = []
+        monkeypatch.setattr(app, "menu_mischief", lambda: chamado.append("travessura"))
+        app.pedido_do_hermes("travessura")
+        assert chamado == [] and "Configurações" in app.mischief.things[0].text
+    finally:
+        _fechar(app)
+
+
+def test_estado_para_hermes(ponte, tmp_path):
+    app = _app(tmp_path, com_hermes=True, url=ponte.url)
+    try:
+        estado = app.estado_para_hermes()
+        assert set(estado) == {"emocao", "energia", "dormindo"}
+        assert estado["emocao"] == app.emotion.current and 0 <= estado["energia"] <= 1
     finally:
         _fechar(app)

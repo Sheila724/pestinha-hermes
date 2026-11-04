@@ -8,7 +8,7 @@ import sqlite3
 import threading
 import time
 
-TIPOS = ("falar", "humor")
+TIPOS = ("falar", "humor", "acao")
 MAX_POR_CONSULTA = 50
 MAX_GUARDADOS = 1000          # os mais antigos são apagados
 

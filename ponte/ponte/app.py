@@ -5,7 +5,7 @@ Rotas:
   GET  /saude              sem token; para monitoramento
   GET  /api/eventos        o pet pergunta "tem algo novo depois do id N?" (polling)
   POST /api/perguntar      você clica no pet, digita, e o Hermes responde
-  POST /interno/eventos    só da própria VPS (cron do Hermes, scripts): põe uma fala na fila
+  POST /interno/eventos    só da própria VPS (cron do Hermes, scripts): põe uma fala, humor ou ação na fila
 
 Tudo em /api e /interno exige "Authorization: Bearer <PONTE_TOKEN>".
 A ponte escuta só em 127.0.0.1; quem a expõe na internet (com HTTPS) é o Caddy.
@@ -17,21 +17,29 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from . import config as config_mod
-from . import hermes
+from . import acoes, hermes
 from .eventos import Eventos
 
 log = logging.getLogger("ponte")
 LOCAIS = {"127.0.0.1", "::1", "testclient"}
 
 
+class EstadoPet(BaseModel):
+    emocao: str = Field(default="", max_length=20)
+    energia: float | None = Field(default=None, ge=0, le=1)
+    dormindo: bool = False
+
+
 class Pergunta(BaseModel):
     texto: str = Field(min_length=1, max_length=500)
+    estado: EstadoPet | None = None
 
 
 class NovoEvento(BaseModel):
     tipo: str = "falar"
     texto: str = Field(default="", max_length=500)
     humor: str = Field(default="", max_length=30)
+    acao: str = Field(default="", max_length=20)
 
 
 def criar_app(cfg=None):
@@ -61,12 +69,17 @@ def criar_app(cfg=None):
 
     @app.post("/api/perguntar", dependencies=[Depends(autorizado)])
     def perguntar(p: Pergunta):
+        contexto = acoes.descrever_estado(p.estado.model_dump() if p.estado else None)
         try:
-            resposta = hermes.perguntar(cfg, p.texto)
+            bruta = hermes.perguntar(cfg, f"{contexto}\n{p.texto}" if contexto else p.texto)
         except hermes.HermesErro as erro:
             log.warning("Hermes falhou: %s", erro)
             raise HTTPException(status_code=502, detail="o Hermes não respondeu agora")
-        return {"resposta": resposta}
+        texto, acao = acoes.separar_acao(bruta)
+        resposta = {"resposta": texto or "…"}
+        if acao:
+            resposta["acao"] = acao
+        return resposta
 
     @app.post("/interno/eventos", dependencies=[Depends(so_local), Depends(autorizado)])
     def adicionar(e: NovoEvento):
@@ -78,8 +91,12 @@ def criar_app(cfg=None):
             if not e.humor.strip():
                 raise HTTPException(status_code=422, detail="humor vazio")
             dados = {"humor": e.humor.strip()}
+        elif e.tipo == "acao":
+            if e.acao not in acoes.ACOES:
+                raise HTTPException(status_code=422, detail=f"acao deve ser uma de: {', '.join(acoes.ACOES)}")
+            dados = {"acao": e.acao}
         else:
-            raise HTTPException(status_code=422, detail="tipo deve ser falar ou humor")
+            raise HTTPException(status_code=422, detail="tipo deve ser falar, humor ou acao")
         return {"id": eventos.adicionar(e.tipo, dados)}
 
     return app

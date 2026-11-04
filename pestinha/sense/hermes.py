@@ -82,7 +82,7 @@ class ClienteHermes:
         self._parar.set()
 
     def coletar(self):
-        """Tudo o que chegou desde a última chamada: lista de ("falar"|"humor"|"resposta"|"erro", texto)."""
+        """Tudo o que chegou desde a última chamada: lista de ("falar"|"humor"|"acao"|"resposta"|"erro", texto)."""
         itens = []
         while True:
             try:
@@ -90,12 +90,15 @@ class ClienteHermes:
             except queue.Empty:
                 return itens
 
-    def perguntar(self, texto):
-        """Manda a pergunta em segundo plano; a resposta chega depois em coletar() como "resposta" ou "erro"."""
+    def perguntar(self, texto, estado=None):
+        """
+        Manda a pergunta em segundo plano; a resposta chega depois em coletar() como "resposta" ou "erro"
+        (e "acao", se o Hermes pediu algo ao corpo). `estado` conta ao Hermes como o pet está agora.
+        """
         texto = str(texto).strip()[:500]
         if not texto:
             return
-        threading.Thread(target=self._perguntar, args=(texto,), name="hermes-pergunta", daemon=True).start()
+        threading.Thread(target=self._perguntar, args=(texto, estado), name="hermes-pergunta", daemon=True).start()
 
     # ---------- por dentro ----------
 
@@ -125,6 +128,8 @@ class ClienteHermes:
                     self._chegou.put(("falar", encurtar(ev["texto"])))
                 elif ev.get("tipo") == "humor" and ev.get("humor"):
                     self._chegou.put(("humor", str(ev["humor"])))
+                elif ev.get("tipo") == "acao" and ev.get("acao"):
+                    self._chegou.put(("acao", str(ev["acao"])))
         if primeira_vez or ultimo < self._ultimo:      # 1ª conexão, ou o banco da ponte foi recriado
             novo = ultimo
         else:                                           # vem no máximo 50 por vez: avança só até o último lido
@@ -134,10 +139,16 @@ class ClienteHermes:
             self._gravar_ultimo()
         return True
 
-    def _perguntar(self, texto):
+    def _perguntar(self, texto, estado=None):
+        corpo = {"texto": texto}
+        if estado:
+            corpo["estado"] = estado
         try:
-            resposta = self._pedido("/api/perguntar", {"texto": texto}, timeout=TIMEOUT_PERGUNTA)["resposta"]
+            dados = self._pedido("/api/perguntar", corpo, timeout=TIMEOUT_PERGUNTA)
+            resposta = dados["resposta"]
             self._chegou.put(("resposta", encurtar(resposta)))
+            if dados.get("acao"):
+                self._chegou.put(("acao", str(dados["acao"])))
         except urllib.error.HTTPError as erro:
             self._chegou.put(("erro", "Meu cérebro não respondeu agora…" if erro.code >= 500
                               else "A VPS não me reconheceu (token?)."))
