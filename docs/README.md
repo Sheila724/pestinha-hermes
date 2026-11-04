@@ -2,6 +2,8 @@
 
 | Documento | Para quê |
 |---|---|
+| [PESTINHA.md](PESTINHA.md) | O pet: personagens, o que ele faz, instalação, interação, privacidade e como gerar o executável. |
+| [HERMES.md](HERMES.md) | Como ligar o pet ao Hermes Agent na VPS e o que ele faz com isso. |
 | [ARQUITETURA.md](ARQUITETURA.md) | Como as partes conversam: camadas, ciclos, política de sessão, aprendizado, persistência e como acrescentar um comportamento. |
 | [REDE_NEURAL.md](REDE_NEURAL.md) | Canais, interneurônios, motores, conexões e decisões da rede. Gerado do código. |
 | [../pestinha/README.md](../pestinha/README.md) | Mapa do pacote e o README de cada camada, com o que cada arquivo faz. Gerado das docstrings. |
