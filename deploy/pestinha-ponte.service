@@ -1,0 +1,15 @@
+# Serviço de usuário (mesmo jeito que o hermes-gateway): ~/.config/systemd/user/pestinha-ponte.service
+# Precisa de "sudo loginctl enable-linger sheila" para continuar rodando sem sessão SSH aberta.
+[Unit]
+Description=Ponte do Pestinha (Pestinha <-> Hermes Agent)
+After=network-online.target hermes-gateway.service
+
+[Service]
+WorkingDirectory=%h/pestinha-hermes/ponte
+EnvironmentFile=%h/.config/pestinha/ponte.env
+ExecStart=%h/pestinha-hermes/ponte/.venv/bin/uvicorn --factory ponte.app:app_padrao --host 127.0.0.1 --port 8765
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

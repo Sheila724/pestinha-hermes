@@ -20,3 +20,7 @@ scratch_*.py
 noc_horizon.json
 .env
 *.env
+
+# Ponte (VPS)
+.venv/
+*.db

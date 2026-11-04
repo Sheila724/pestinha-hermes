@@ -1,0 +1,9 @@
+# /etc/caddy/Caddyfile — quando o domínio estiver decidido.
+# Troque o nome abaixo pelo domínio (ou pestinha.187-41-111-108.sslip.io para testar).
+pestinha.exemplo.com.br {
+	# /interno é só para scripts na própria VPS: nunca pela internet
+	@interno path /interno/*
+	respond @interno 404
+
+	reverse_proxy 127.0.0.1:8765
+}
