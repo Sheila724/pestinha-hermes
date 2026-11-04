@@ -26,6 +26,7 @@ from . import acoes, clima, hermes
 from .conversa import Conversa
 from .diario import Diario, limpar_resumo
 from .eventos import Eventos
+from .mundo import Mundo
 from .perfil import PADRAO, Perfil, hora_valida
 
 log = logging.getLogger("ponte")
@@ -63,12 +64,13 @@ class NovoEvento(BaseModel):
     acao: str = Field(default="", max_length=20)
 
 
-def criar_app(cfg=None, geocodificar=clima.geocodificar):
+def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.previsao):
     cfg = cfg or config_mod.carregar()
     eventos = Eventos(cfg.banco)
     perfil = Perfil(cfg.banco)
     diario = Diario(cfg.banco)
     conversa = Conversa(cfg.banco)
+    mundo = Mundo(perfil, buscar_previsao)
     app = FastAPI(title="Ponte do Pestinha", docs_url=None, redoc_url=None, openapi_url=None)
 
     def autorizado(request: Request):
@@ -94,7 +96,7 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar):
     @app.post("/api/perguntar", dependencies=[Depends(autorizado)])
     def perguntar(p: Pergunta):
         historico = conversa.recente()
-        linhas = [acoes.descrever_estado(p.estado.model_dump() if p.estado else None)]
+        linhas = [mundo.contexto(), acoes.descrever_estado(p.estado.model_dump() if p.estado else None)]
         respondendo = p.respondendo.strip()
         lembra = any(m["role"] == "assistant" and m["content"] == respondendo for m in historico)
         if respondendo and not lembra:              # o post-it é antigo ou a memória curta já esqueceu

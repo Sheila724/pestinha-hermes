@@ -8,6 +8,12 @@ TOKEN = "t" * 64
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
 
 
+def sem_mundo(texto):
+    """Tira a linha "[Lado de fora agora: ...]" que toda pergunta leva (testada em test_mundo.py)."""
+    linhas = texto.split("\n")
+    return "\n".join(linhas[1:]) if linhas[0].startswith("[Lado de fora agora:") else texto
+
+
 @pytest.fixture
 def cfg(tmp_path):
     return config.carregar({"PONTE_TOKEN": TOKEN, "PONTE_BANCO": str(tmp_path / "p.db")})
@@ -69,7 +75,7 @@ def test_perguntar_repassa_ao_hermes(cliente, monkeypatch):
     recebido = {}
 
     def falso(cfg, texto, historico=()):
-        recebido["texto"] = texto
+        recebido["texto"] = sem_mundo(texto)
         return "Miau, sou o Pestinha!"
 
     monkeypatch.setattr(hermes, "perguntar", falso)
@@ -148,7 +154,7 @@ def test_perguntar_com_estado_e_acao(cliente, monkeypatch):
     recebido = {}
 
     def falso(cfg, texto, historico=()):
-        recebido["texto"] = texto
+        recebido["texto"] = sem_mundo(texto)
         return "Hmpf, tá bom.\n[acao: dormir]"
 
     monkeypatch.setattr(hermes, "perguntar", falso)

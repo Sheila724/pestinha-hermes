@@ -8,6 +8,12 @@ TOKEN = "t" * 64
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
 
 
+def sem_mundo(texto):
+    """Tira a linha "[Lado de fora agora: ...]" que toda pergunta leva (testada em test_mundo.py)."""
+    linhas = texto.split("\n")
+    return "\n".join(linhas[1:]) if linhas[0].startswith("[Lado de fora agora:") else texto
+
+
 @pytest.fixture
 def cfg(tmp_path):
     return config.carregar({"PONTE_TOKEN": TOKEN, "PONTE_BANCO": str(tmp_path / "p.db")})
@@ -38,7 +44,7 @@ def chat(cfg, monkeypatch):
     chamadas = []
 
     def falso(cfg_, texto, historico=()):
-        chamadas.append((texto, list(historico)))
+        chamadas.append((sem_mundo(texto), list(historico)))
         return f"resposta {len(chamadas)}"
 
     monkeypatch.setattr(hermes, "perguntar", falso)

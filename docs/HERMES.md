@@ -79,6 +79,10 @@ Em dia útil, o pet manda dois avisos, no fuso da cidade escolhida:
 - **Uns 30 minutos antes da saída:** chuva nas próximas horas ("leva o guarda-chuva"), feriado amanhã,
   feriado prolongado, sexta-feira.
 
+Além dos avisos, **toda conversa** leva uma linha com o dia, a hora, a previsão de hoje e de amanhã (e das
+próximas 3 horas) e os feriados (`ponte/mundo.py`, previsão em cache por 30 minutos). Então dá para
+perguntar "vai chover hoje?" ou "amanhã é feriado?" a qualquer hora.
+
 Feriados nacionais do Brasil, inclusive os móveis (Carnaval, Sexta-feira Santa, Corpus Christi), são
 calculados na própria ponte; em feriado e no fim de semana ele não avisa. O Hermes escreve cada aviso no
 jeito do pet; se ele não responder, vai uma frase pronta com o principal.
