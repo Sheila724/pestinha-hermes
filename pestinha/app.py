@@ -225,7 +225,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self._timer(SAVE_EVERY_MS, self.save)
 
         # ----- Hermes (cérebro na VPS): só liga se existir memory/hermes.json -----
-        self.hermes = hermes.ClienteHermes.de_arquivo(self.paths.hermes, self.paths.hermes_ultimo)
+        self.hermes = hermes.ClienteHermes.de_arquivo(self.paths.hermes, self.paths.hermes_ultimo, avisar=log)
         if self.hermes:
             self.hermes.iniciar()
             self._timer(HERMES_MS, self.receber_hermes)
