@@ -5,6 +5,8 @@ Rotas:
   GET  /saude              sem token; para monitoramento
   GET  /api/eventos        o pet pergunta "tem algo novo depois do id N?" (polling)
   POST /api/perguntar      você clica no pet, digita, e o Hermes responde
+  GET  /api/perfil         cidade e horários escolhidos (para os avisos do lado de fora)
+  POST /api/perfil         escolhe a cidade ("Franca, SP", "Lisboa") e os horários de entrada e saída
   POST /interno/eventos    só da própria VPS (cron do Hermes, scripts): põe uma fala, humor ou ação na fila
 
 Tudo em /api e /interno exige "Authorization: Bearer <PONTE_TOKEN>".
@@ -17,8 +19,9 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from . import config as config_mod
-from . import acoes, hermes
+from . import acoes, clima, hermes
 from .eventos import Eventos
+from .perfil import PADRAO, Perfil, hora_valida
 
 log = logging.getLogger("ponte")
 LOCAIS = {"127.0.0.1", "::1", "testclient"}
@@ -35,6 +38,12 @@ class Pergunta(BaseModel):
     estado: EstadoPet | None = None
 
 
+class NovoPerfil(BaseModel):
+    cidade: str = Field(min_length=2, max_length=80)
+    entrada: str = Field(default=PADRAO["entrada"], max_length=5)
+    saida: str = Field(default=PADRAO["saida"], max_length=5)
+
+
 class NovoEvento(BaseModel):
     tipo: str = "falar"
     texto: str = Field(default="", max_length=500)
@@ -42,9 +51,10 @@ class NovoEvento(BaseModel):
     acao: str = Field(default="", max_length=20)
 
 
-def criar_app(cfg=None):
+def criar_app(cfg=None, geocodificar=clima.geocodificar):
     cfg = cfg or config_mod.carregar()
     eventos = Eventos(cfg.banco)
+    perfil = Perfil(cfg.banco)
     app = FastAPI(title="Ponte do Pestinha", docs_url=None, redoc_url=None, openapi_url=None)
 
     def autorizado(request: Request):
@@ -80,6 +90,23 @@ def criar_app(cfg=None):
         if acao:
             resposta["acao"] = acao
         return resposta
+
+    @app.get("/api/perfil", dependencies=[Depends(autorizado)])
+    def ver_perfil():
+        return perfil.ler() or {}
+
+    @app.post("/api/perfil", dependencies=[Depends(autorizado)])
+    def mudar_perfil(p: NovoPerfil):
+        entrada, saida = hora_valida(p.entrada), hora_valida(p.saida)
+        if not entrada or not saida or entrada >= saida:
+            raise HTTPException(status_code=422, detail="horários no formato HH:MM, com a entrada antes da saída")
+        try:
+            lugar = geocodificar(p.cidade)
+        except clima.ClimaErro as erro:
+            raise HTTPException(status_code=404, detail=str(erro))
+        dados = {**lugar, "cidade": p.cidade.strip(), "entrada": entrada, "saida": saida}
+        perfil.gravar(dados)
+        return dados
 
     @app.post("/interno/eventos", dependencies=[Depends(so_local), Depends(autorizado)])
     def adicionar(e: NovoEvento):

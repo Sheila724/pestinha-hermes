@@ -1,0 +1,11 @@
+# Avisos do lado de fora (clima, sexta-feira, feriado). Disparado pelo pestinha-lado-de-fora.timer.
+# Serviço de usuário: ~/.config/systemd/user/pestinha-lado-de-fora.service
+[Unit]
+Description=Pestinha: avisos do lado de fora (clima e calendário)
+After=network-online.target pestinha-ponte.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/pestinha-hermes/ponte
+EnvironmentFile=%h/.config/pestinha/ponte.env
+ExecStart=%h/pestinha-hermes/ponte/.venv/bin/python -m ponte.lado_de_fora

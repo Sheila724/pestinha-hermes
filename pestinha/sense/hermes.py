@@ -64,6 +64,7 @@ class ClienteHermes:
         self._parar = threading.Event()
         self._thread = None
         self.online = None              # None: ainda não sabe; True/False depois da primeira consulta
+        self.perfil = None              # cidade e horários escolhidos nesta sessão (para preencher o menu)
         self._ultimo = self._ler_ultimo()
 
     @classmethod
@@ -100,7 +101,29 @@ class ClienteHermes:
             return
         threading.Thread(target=self._perguntar, args=(texto, estado), name="hermes-pergunta", daemon=True).start()
 
+    def configurar_perfil(self, cidade, entrada, saida):
+        """
+        Escolhe a cidade e os horários dos avisos do lado de fora (clima, sexta-feira, feriado).
+        Em segundo plano; a confirmação chega em coletar() como "resposta" (ou "erro").
+        """
+        corpo = {"cidade": str(cidade).strip()[:80], "entrada": str(entrada).strip(), "saida": str(saida).strip()}
+        if corpo["cidade"]:
+            threading.Thread(target=self._configurar_perfil, args=(corpo,), name="hermes-perfil", daemon=True).start()
+
     # ---------- por dentro ----------
+
+    def _configurar_perfil(self, corpo):
+        try:
+            dados = self._pedido("/api/perfil", corpo)
+            self.perfil = dados
+            self._chegou.put(("resposta", encurtar(
+                f"Agora eu olho o céu de {dados['nome']}! Aviso entre {dados['entrada']} e {dados['saida']}.")))
+        except urllib.error.HTTPError as erro:
+            self._chegou.put(("erro", {404: "Não achei essa cidade. Tenta 'Cidade, UF' ou 'Cidade, País'.",
+                                       422: "Horário estranho… use HH:MM, a entrada antes da saída."}
+                              .get(erro.code, "A VPS não aceitou a cidade agora.")))
+        except (OSError, urllib.error.URLError, ValueError, KeyError, TypeError):
+            self._chegou.put(("erro", "Não consegui falar com a VPS."))
 
     def _pedido(self, caminho, corpo=None, timeout=TIMEOUT_EVENTOS):
         dados = None if corpo is None else json.dumps(corpo).encode("utf-8")
