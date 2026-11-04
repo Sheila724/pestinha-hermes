@@ -15,7 +15,7 @@ import time
 from PySide6.QtCore import QObject, Signal
 
 from .. import config
-from .objetos import ImageThing, NoteThing
+from .objetos import NOTE_SIZE_FALA, ImageThing, NoteThing
 from ..ajustes import TAMANHO_MEME as MEME_MAX, TAMANHO_MEME_CANTO as CORNER_MAX
 
 CORNER_MARGIN = 18
@@ -156,6 +156,17 @@ class MischiefEngine(QObject):
         thing.place(*random.choice(free))
         self._add(thing)
         return True
+
+    def mostrar_fala(self, texto, x, y, bounds):
+        """Post-it com uma fala (do Hermes) colado perto de (x, y), dentro da tela. Some ao clicar."""
+        thing = NoteThing(texto, size=NOTE_SIZE_FALA if len(texto) > 60 else None)
+        thing.clicked.connect(self._on_click)
+        left, top, right, bottom = bounds
+        hw, hh = thing.width() / 2, thing.height() / 2
+        thing.place(min(max(x, left + hw), right - hw), min(max(y, top + hh), bottom - hh))
+        thing.resting = True            # fica colado onde apareceu, como um post-it largado
+        self._add(thing)
+        return thing
 
     def attach(self, thing, x, y):
         """Você pegou o objeto: ele segue o mouse até você soltar."""

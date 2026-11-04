@@ -9,7 +9,7 @@ Mixin de PestinhaApp: usa os atributos criados em PestinhaApp.__init__.
 
 from ..log import log
 import time
-from PySide6.QtWidgets import QMenu
+from PySide6.QtWidgets import QInputDialog, QMenu
 from ..body.pet import cursor_pos
 from ..ajustes import (
     INSATISFACAO_NOTEBOOK,
@@ -147,6 +147,8 @@ class InteracaoMixin:
         item("Mostrar o notebook" if self.mesa.escondido else "Esconder o notebook",
              self.menu_alternar_notebook)
         item("Fazer uma travessura agora", self.menu_mischief, perms["travessuras"])
+        if getattr(self, "hermes", None):
+            item("Perguntar ao Hermes...", self.menu_perguntar_hermes, not self._congelado())
         menu.addSeparator()
         item("Cantinho do castigo", lambda: self.castigo.toggle(self.bounds()))
         item("Painel de protesto", lambda: self.floats.toggle("greve"))
@@ -156,6 +158,14 @@ class InteracaoMixin:
         item("Esconder (volta pela bandeja)", self.toggle_hidden)
         item("Fechar", self.menu_close)
         menu.exec(pos)
+
+    def menu_perguntar_hermes(self):
+        """Menu: abre uma caixinha de texto e manda a pergunta ao Hermes; a resposta chega como post-it."""
+        texto, ok = QInputDialog.getText(None, self.nome, "O que você quer me perguntar?")
+        texto = texto.strip() if ok else ""
+        if texto:
+            self.hermes.perguntar(texto)
+            self.mostrar_fala("Hmm… deixa eu pensar!")
 
     def menu_poke(self):
         """Menu: 'Cutucar' (ignora o intervalo mínimo entre cutucadas)."""

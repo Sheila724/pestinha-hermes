@@ -70,7 +70,7 @@ from .mind.protest_ctl import ProtestController
 from .mind.revolucao import RevolucaoController
 from .mind.sleep import SleepController
 from .paths import Paths
-from .sense import senses
+from .sense import hermes, senses
 from .sense.timeline import TimelineRecorder
 from .ui.float_manager import FloatManager
 from .ui.ui import PanicHotkey, Tray
@@ -79,6 +79,7 @@ from .world.mischief import MischiefEngine
 MAX_DT = 2.0          # s: um atraso maior que isso (suspensão) não vira tempo de rede
 
 SAVE_EVERY_MS = 30_000
+HERMES_MS = 1_000          # de quanto em quanto tempo o app recolhe o que o Hermes mandou
 
 
 class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
@@ -223,6 +224,13 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self._timer(500, self.sense)
         self._timer(SAVE_EVERY_MS, self.save)
 
+        # ----- Hermes (cérebro na VPS): só liga se existir memory/hermes.json -----
+        self.hermes = hermes.ClienteHermes.de_arquivo(self.paths.hermes, self.paths.hermes_ultimo)
+        if self.hermes:
+            self.hermes.iniciar()
+            self._timer(HERMES_MS, self.receber_hermes)
+            log(f"[hermes] ligado: {self.hermes.url}")
+
         self._apply_settings()
         self.sense()
         self.scan_windows()
@@ -242,6 +250,21 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
                 self.nome, f"Estou aqui. Pânico: {config.PANIC_HOTKEY_TEXT}",
                 QSystemTrayIcon.Information, 3000,
             )
+
+    def receber_hermes(self):
+        """Mostra o que chegou do Hermes. Pausado ou escondido, deixa esperando na fila até voltar."""
+        if self._congelado() or self.hidden:
+            return
+        for tipo, texto in self.hermes.coletar():
+            if tipo in ("falar", "resposta", "erro"):
+                self.mostrar_fala(texto)
+            elif tipo == "humor":
+                log(f"[hermes] humor recebido (ainda sem efeito): {texto}")
+
+    def mostrar_fala(self, texto):
+        """Post-it com a fala logo acima do pet."""
+        body = self.pet.body
+        self.mischief.mostrar_fala(texto, body.x, body.y - 150, self.bounds())
 
     def _timer(self, ms, slot):
         """Cria um relógio que chama `slot` a cada `ms` milissegundos."""
