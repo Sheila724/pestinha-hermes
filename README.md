@@ -1,233 +1,117 @@
-# Pestinha
+# Pestinha + Hermes
 
-Pets de tela para Windows, macOS e Linux, cada um com o próprio cérebro. São dois personagens por enquanto:
+Um pet de tela que ganhou um cérebro na nuvem.
 
-- **Bryan**, o original: uma telinha com dois olhos que mora no seu monitor principal. Cai, quica, pousa nas
-  barras de título das janelas, brinca com uma bolinha, trabalha num notebook quando você programa, apronta
-  com memes e post-its, protesta contra o cursor quando fica bravo e aprende com o seu carinho.
-- **Jorge**, um personagem de sátira: um "coach" de finanças e IA que vive tentando vender mentorias para
-  quem está na frente do computador. **Jorge não é uma referência a nenhum coach, empresa ou pessoa real.**
-  É um personagem inventado para fazer piada com a cultura de promessas de enriquecimento rápido. Não vende,
-  cobra nem pede nada de ninguém.
+O **Pestinha** é um pet de desktop (Python + Qt) que vive no monitor, reage ao que acontece no computador e
+aprende com uma rede neural própria. Este projeto liga o pet a um **agente de IA**, o
+[Hermes Agent](https://hermes-agent.nousresearch.com/), rodando numa VPS. O pet passa a receber falas do
+agente como post-its e dá para conversar com ele pelo menu, de dentro de uma rede corporativa e sem VPN.
 
-Os dois têm a mesma rede neural, mas cada um tem seu temperamento, seu conteúdo e sua memória, separados.
-Quem decide o que o pet sente e faz é uma **rede neural pulsada** de 470 neurônios (integração e disparo com
-vazamento), alimentada pelo que acontece no seu computador e pelo que você faz com ele. Algumas regras
-do programa (limiares, o que pode ou não acontecer) são escritas à mão; a seção
-[Como a decisão funciona](docs/ARQUITETURA.md#como-a-decisão-funciona) explica o que é aprendido e o que é regra.
+<!--
+Demonstração: grave um GIF curto (ScreenToGif, por exemplo) do post-it aparecendo, salve em
+docs/imagens/hermes_demo.gif e tire esta linha de dentro do comentário:
+![O Pestinha mostrando uma fala que veio da VPS](docs/imagens/hermes_demo.gif)
+-->
 
-> Projeto em desenvolvimento. Algumas coisas podem não funcionar direito e o comportamento pode
-> mudar entre versões.
+## Arquitetura
 
-## Personagens
-
-Cada personagem é um `pets/<pet>.json` (quem ele é) mais uma pasta `pets/<pet>/` (as frases, cartazes e
-memes dele). Todos usam a mesma rede neural, mas cada um tem a própria memória: o que um aprende não
-passa para o outro. Você escolhe o personagem em **Configurações**; a troca vale na próxima vez que abrir.
-Para criar um, veja [pets/README.md](pets/README.md).
-
-| Personagem | Quem é |
-|---|---|
-| **Bryan** | Revoltado contra o cursor, o Alt+F4 e o Gerenciador de Tarefas. Protesta, faz greve e revolução. |
-| **Uptime** | Plantonista de data center. Fala de plantão, chamados, alertas do Zabbix, sala fria, cabos e backup. Trabalha num rack de servidores (não tem notebook) e conta e-mail (Thunderbird) e navegador como trabalho: senta junto e comenta quando você abre um deles. Memes próprios em forma de cartão de status do NOC (feliz, contente, curioso, bravo, triste e trabalhando). |
-| **Jorge** | Personagem de sátira. Não é referência a nenhum coach, empresa ou pessoa real. Os mesmos estágios viram prospecção, marketing agressivo, "assinatura premium" (só no cartaz) e colapso financeiro; ele atira panfletos de mentoria. É sátira: não vende, cobra nem bloqueia nada. Tem cinco memes felizes, contentes, curiosos e bravos próprios; as outras emoções ainda não têm. |
-
-## O que o pet faz
-
-| | |
-|---|---|
-| **Corpo** | Gravidade, quique, giro, pouso nas barras de título. Você arrasta, joga e gira com a rodinha. |
-| **Emoções** | Saem dos motores da rede: feliz, contente, curioso, observando, bravo, triste, assustado, dramático, dormindo. |
-| **Carinho** | Passe o mouse de um lado para o outro em cima dele: fecha os olhinhos de felicidade e aprende com isso. |
-| **Bolinha** | Ele chuta e arremessa uma bolinha de tênis; você pode pegar, levar embora (ele reage) ou guardar. |
-| **Notebook** | Quando você trabalha (VS Code, Visual Studio, PyCharm, Claude, Codex), ele pode sentar atrás do notebook e trabalhar junto. Você também pode pedir; ele decide se quer. Cada pet pode contar outros programas como trabalho (o Uptime conta e-mail e navegador) e trocar o notebook por um rack. |
-| **Programas** | Reconhece editores, navegadores, e-mail (Thunderbird), chat, música e jogos. Com `recadinhos_email.txt` ou `recadinhos_navegador.txt` na pasta do pet, ele comenta quando você abre aquele programa. |
-| **Travessuras** | Traz memes, fotos e post-its para a tela. Com que frequência é decidido pela rede (tédio, curiosidade). |
-| **Protesto** | Bravo por muito tempo: reclamação, manifestação, greve e revolução contra o cursor, com cartazes e bolinhas de papel. |
-| **Tristeza** | Sozinho ou ignorado, fica triste, vai para o cantinho e cola bilhetes tristes. |
-| **Cantinho do castigo** | Uma placa que você arrasta para onde quiser. Solte ele na frente dela e ele fica de castigo: olha para você, vira de costas, xinga em cartazes e, se a frustração durar, foge. Carinho faz ele perdoar. |
-| **Sono e fogos** | Dorme quando a energia acaba. Muito feliz, solta fogos de artifício. |
-
-Tudo o que ele aprende (carinho, condicionamento, o que deu certo nas travessuras, fugas do castigo)
-fica salvo localmente e muda o jeito dele com o tempo.
-
-## Requisitos
-
-- Windows 10 ou 11, macOS (Quartz/pyobjc) ou Linux com X11.
-- Python 3.11 ou mais novo.
-- No Linux, para as janelas e o tempo ocioso: `xdotool`, `wmctrl` e `xprintidle`. Sem eles, o pet continua
-  andando, mas não enxerga as janelas.
-- Cerca de 70 MB de RAM com ele rodando.
-
-## Instalação e uso
-
-```bash
-pip install -r requirements.txt
-```
-```bash
-python main.py
+```mermaid
+flowchart LR
+    subgraph PC["Computador (Windows)"]
+        Pet["Pestinha<br/>PySide6"]
+        Cli["sense/hermes.py<br/>cliente em threads"]
+        Pet --- Cli
+    end
+    subgraph VPS["VPS Ubuntu 24.04"]
+        Caddy["Caddy<br/>HTTPS + Let's Encrypt"]
+        Ponte["Ponte FastAPI<br/>127.0.0.1:8765"]
+        DB[("SQLite<br/>fila de eventos")]
+        Hermes["Hermes Agent<br/>API em 127.0.0.1:8642"]
+        Cron["Agendamentos /<br/>scripts locais"]
+        Caddy --> Ponte
+        Ponte --- DB
+        Ponte -->|"/v1/chat/completions"| Hermes
+        Cron -->|"/interno/eventos"| Ponte
+    end
+    Cli -->|"HTTPS: polling a cada 5 s<br/>Bearer token"| Caddy
 ```
 
-Na primeira vez, um passo a passo explica o que ele vê e não vê, e depois abre a tela de permissões. Depois
-de clicar em **Começar**, as próximas aberturas vão direto para o pet. A tela volta a aparecer se o pânico
-tiver desligado o programa. Para abrir a tela de propósito:
+| Peça | Onde | Papel |
+|---|---|---|
+| [`pestinha/sense/hermes.py`](pestinha/sense/hermes.py) | PC | Consulta a fila e envia perguntas em threads próprias; o Qt só recolhe o resultado. |
+| [`ponte/`](ponte/README.md) | VPS | Fila de eventos, autenticação e repasse das perguntas ao Hermes. |
+| [`deploy/`](deploy/) | VPS | Serviço systemd de usuário, Caddyfile e modelo de configuração. |
+| Hermes Agent | VPS | O agente: modelo de linguagem, ferramentas e agendador. |
+
+## Decisões técnicas
+
+**Polling HTTP em vez de WebSocket.** O pet roda num computador de trabalho, atrás do firewall e do proxy da
+empresa. Uma requisição HTTPS de saída a cada 5 segundos passa em praticamente qualquer rede, não precisa de
+VPN nem de porta aberta no PC, e é trivial de depurar com `curl`. A latência de poucos segundos é irrelevante
+para um post-it.
+
+**Uma ponte entre o pet e o agente.** O Hermes nunca fica exposto na internet: a API dele escuta só em
+`127.0.0.1`. A ponte expõe apenas três rotas pequenas, valida o token, limita o tamanho das perguntas e
+define a persona. Se um dia o agente mudar, só a ponte muda.
+
+**Fila com id crescente, gravada em SQLite.** O pet pergunta "o que veio depois do id N?" e guarda o último
+id que mostrou. Nada se perde se o pet ficar fechado ou se a ponte reiniciar, e nada aparece duas vezes. Na
+primeira conexão, o histórico antigo não é despejado na tela.
+
+**A rede nunca trava a interface.** Toda chamada HTTP roda fora da thread do Qt. Com a VPS fora do ar, o
+cliente dobra a espera entre tentativas até 60 segundos e o pet segue normal.
+
+**Custo sob controle.** Uma chamada ao agente custa milhares de tokens (instruções e ferramentas internas).
+Por isso o polling nunca chama o Hermes: ele só é acionado quando você pergunta algo ou um agendamento manda.
+
+**Segurança da VPS.** Login só por chave SSH, root e senha desligados, firewall liberando apenas 22, 80 e 443,
+deploy key do GitHub só de leitura, segredos em arquivos `chmod 600` fora do repositório, comparação do token
+em tempo constante e a rota `/interno` bloqueada no Caddy e na própria aplicação.
+
+## Problemas reais resolvidos no caminho
+
+- **O PowerShell 5.1 grava UTF-8 com BOM.** O `Set-Content -Encoding utf8` acrescenta `EF BB BF` no começo do
+  arquivo, o leitor de JSON recusava e o recurso desligava sem aviso. Correção: leitura com `utf-8-sig` e
+  mensagem no log quando o arquivo existe mas não serve.
+- **"Funciona na VPS, mas não no PC".** O certificado saiu e a VPS respondia, mas o PC não resolvia o nome.
+  Comparar o DNS da rede com o `8.8.8.8` mostrou que o servidor DNS corporativo tinha guardado o "não existe"
+  de um teste anterior à criação do registro; o tempo de cache negativo veio do SOA do domínio (30 min).
+- **Serviço que morria ao sair do SSH.** O instalador do agente cria um serviço systemd *de usuário*, que
+  para quando a sessão fecha. `loginctl enable-linger` resolve.
+- **Primeira emissão de certificado falhando.** O Caddy pediu o certificado antes de o DNS propagar
+  (`NXDOMAIN`) e conseguiu sozinho na nova tentativa, dois minutos depois.
+
+## Tecnologias
+
+Python 3.11+, PySide6 (Qt), FastAPI, Uvicorn, httpx, SQLite, pytest, GitHub Actions, PyInstaller, Inno Setup,
+Ubuntu 24.04, systemd, UFW, OpenSSH, Caddy, Let's Encrypt, Cloudflare DNS e Hermes Agent.
+
+## Rodando
+
+- **Pet:** veja [docs/PESTINHA.md](docs/PESTINHA.md) (instalação, interação, privacidade e como gerar o executável).
+- **Ligar o pet ao Hermes:** [docs/HERMES.md](docs/HERMES.md).
+- **Ponte na VPS:** [ponte/README.md](ponte/README.md).
+
+## Testes
 
 ```bash
-python main.py --configurar
+python -m pytest -q                      # pet: 400+ testes, Qt em modo offscreen
+cd ponte && python -m pytest -q          # ponte
 ```
 
-Com o programa aberto, as opções também ficam em **Configurações**, no ícone da bandeja. No Windows, é lá que
-se marca **Abrir o Pestinha ao entrar no Windows**. Só uma cópia abre por vez.
+O CI roda os dois conjuntos separadamente, cada um só quando a sua parte muda.
 
-### Como interagir
+## Próximos passos
 
-| Gesto | Efeito |
-|---|---|
-| Clique rápido | Cutucada |
-| Passar o mouse de um lado para o outro em cima dele | Carinho |
-| Segurar e arrastar / soltar rápido | Leva junto / arremessa |
-| Rodinha do mouse | Gira |
-| Botão direito | Menu: cutucar, carinho, bolinha, dormir, travessura, trabalhar, notebook, cantinho do castigo, painéis, configurações, esconder, fechar |
+- Lembretes em linguagem natural ("me lembra às 16h de…"), agendados pelo próprio agente.
+- Diário de projetos: o pet anota o que você construiu na semana e o agente rascunha um post.
+- O pet contando ao agente o tipo de atividade em uso (só a categoria, nunca o conteúdo) para comentários com contexto.
+- Eventos de humor mudando a emoção do pet.
 
-### Pânico
+## Créditos e licença
 
-`Ctrl + Alt + Shift + B` desliga tudo na hora, e ele continua desligado até você religar em
-Configurações.
+O Pestinha original e a rede neural do pet vêm do projeto em que este é baseado; a integração com o Hermes,
+a ponte e o deploy são deste repositório. <!-- Coloque aqui o nome e o link do autor original do Pestinha. -->
 
-### Modo teste
-
-Desligado por padrão. Ligado, os tempos ficam curtos (emoções, travessuras e protesto acontecem em
-segundos), os painéis de desenvolvimento ficam na tela (monitor neural e painel de protesto) e o
-terminal mostra as decisões.
-
-## Privacidade
-
-Ele roda só no seu computador e não envia nada para a internet. Lê o **nome** do programa em primeiro
-plano, o tempo sem usar teclado e mouse, a posição do cursor e a geometria das janelas. **Nunca** lê
-conteúdo nem título de janela. Tudo o que ele grava fica na pasta de dados e pode ser apagado pela tela de
-configurações: `memory/`, rodando pelo código, ou `%LOCALAPPDATA%\Pestinha`, no executável do Windows.
-Detalhes em [PRIVACIDADE.md](PRIVACIDADE.md).
-
-## Personalizar
-
-- **Memes, recadinhos e cartazes do Bryan:** pasta `pets/bryan/`, explicada em [pets/README.md](pets/README.md).
-  Pode editar com ele aberto.
-- **Bolinhas, notebook e suas fotos:** `assets/comum/`, valem para qualquer personagem
-  ([assets/LEIA-ME.txt](assets/LEIA-ME.txt)).
-- **Programas que ele reconhece:** `assets/comum/programas.json` soma programas à lista de trabalho, jogo, música, e-mail etc.
-- **Personalidade:** `pets/bryan.json` (semente da rede, temperamento, pesos de brincadeira, reação ao notebook).
-- **Números do comportamento:** `pestinha/ajustes.py`, todos validados ao abrir.
-
-## Estrutura
-
-| Pasta | O que tem |
-|---|---|
-| `pestinha/` | O código, em camadas ([pestinha/README.md](pestinha/README.md)) |
-| `assets/comum/` | Imagens da bolinha e do notebook, e suas fotos: valem para qualquer pet |
-| `pets/` | Cada pet: `<pet>.json` (quem ele é) e `<pet>/` (frases, cartazes e memes dele) |
-| `tests/` | Testes automáticos |
-| `ferramentas/fuzz_pestinha.py` | Fuzzer: roda ações aleatórias e checa invariantes |
-| `ferramentas/` | Geradores de documentação |
-| `docs/` | Arquitetura, rede neural e relatórios ([docs/README.md](docs/README.md)) |
-| `memory/` | Gerada em uso, com o que ele aprende. Não vai para o repositório |
-
-## Documentação
-
-- [docs/ARQUITETURA.md](docs/ARQUITETURA.md): como as partes conversam.
-- [docs/REDE_NEURAL.md](docs/REDE_NEURAL.md): canais, interneurônios, motores e decisões da rede.
-- [pestinha/README.md](pestinha/README.md) e o README de cada pasta: o que cada arquivo faz.
-- [CONTRIBUTING.md](CONTRIBUTING.md): como rodar os testes e contribuir.
-- [CHANGELOG.md](CHANGELOG.md): o que mudou.
-
-## Desenvolvimento
-
-```bash
-pip install -r requirements-dev.txt
-```
-```bash
-python -m pytest -q
-```
-
-Os testes rodam sem abrir janelas (Qt em modo offscreen). Mais detalhes em [CONTRIBUTING.md](CONTRIBUTING.md).
-
-### Gerar o executável
-
-Há duas formas: gerar no seu computador (só o sistema em que você está) ou deixar o GitHub gerar os três.
-O PyInstaller só gera o executável do sistema onde roda, por isso um Windows não gera o de Mac.
-
-#### Opção 1: no seu computador
-
-1. Instale as dependências de desenvolvimento (inclui o PyInstaller):
-
-   ```bash
-   pip install -r requirements-dev.txt
-   ```
-
-2. Gere o executável, no Windows:
-
-   ```bash
-   python -m PyInstaller --noconfirm --onefile --windowed --name Pestinha --distpath build/onefile --workpath build/work --specpath build --hidden-import win32timezone main.py
-   ```
-
-   No macOS e no Linux, use o mesmo comando sem `--windowed` e sem `--hidden-import win32timezone`.
-
-3. O resultado fica em `build/onefile/` (`Pestinha.exe` no Windows, `Pestinha` nos outros).
-
-4. Monte a pasta de entrega: copie o executável e as pastas `assets/` e `pets/` para uma mesma pasta.
-   O programa lê o conteúdo dessas pastas ao lado do executável. No Windows, a memória fica em
-   `%LOCALAPPDATA%\Pestinha`, a menos que já exista uma pasta `memory/` ao lado dele. Nos outros sistemas, a
-   `memory/` é criada sozinha na primeira execução, então não copie a sua.
-
-5. Opcional, no Windows: gere o instalador com o [Inno Setup 6](https://jrsoftware.org/isinfo.php). Ele usa o
-   executável do passo 3, instala só para o usuário atual e não pede administrador:
-
-   ```bash
-   ISCC instalador/pestinha.iss
-   ```
-
-   O resultado fica em `instalador/saida/`.
-
-#### Opção 2: pelo GitHub (os três sistemas de uma vez)
-
-O workflow `.github/workflows/executaveis.yml` gera Windows, macOS e Linux em máquinas do próprio GitHub.
-
-1. Suba o repositório para o GitHub (`git push`).
-2. Para gerar sem criar versão: na aba **Actions**, escolha **executáveis**, clique em **Run workflow**.
-3. Para gerar e publicar uma versão: crie uma tag e envie. Por exemplo:
-
-   ```bash
-   git tag v0.8.0
-   git push origin v0.8.0
-   ```
-
-4. Ao terminar (alguns minutos), a execução tem três artefatos, um por sistema, com a pasta pronta
-   (executável + `assets/` + `pets/`). Baixe pela própria página da execução, na seção **Artifacts**.
-
-Para distribuir para quem não é do projeto, publique esses artefatos na aba **Releases** (use "Draft a new release"
-na tag criada), e não dentro do repositório: cada executável tem cerca de 60 MB.
-
-#### Depois de gerar
-
-- Para testar sem misturar com a sua memória, crie uma pasta `memory/` vazia ao lado do executável de teste.
-- O executável não é assinado: o Windows e o macOS avisam na primeira execução. No macOS, a permissão de
-  Acessibilidade é necessária para o atalho Ctrl+Alt+Shift+B; no Linux, o atalho e as janelas precisam de
-  `xdotool`, `wmctrl` e `xprintidle`.
-
-## Licença
-
-O código do Pestinha é software livre, sob a [GNU General Public License v3.0 ou posterior](LICENSE)
-(GPL-3.0-or-later). Você pode usar, estudar, modificar e redistribuir, mas toda versão distribuída,
-modificada ou não, precisa continuar aberta e sob a mesma licença.
-
-As imagens e os textos de `assets/` não estão cobertos por esta licença
-
-## Limitações conhecidas
-
-- macOS e Linux ainda não foram testados numa máquina real: a parte de leitura das janelas e do teclado foi
-  escrita e testada só nas partes de texto (ver `tests/test_plataforma.py`).
-- No macOS, o pet precisa da permissão de Acessibilidade para o atalho Ctrl+Alt+Shift+B funcionar.
-- No Linux com Wayland, o pet não enxerga janelas nem o tempo ocioso, e o atalho global não funciona.
-- Pouco testado com escala de tela acima de 100% e com vários monitores. A tela cheia num monitor esconde o
-  pet em todos.
-- Jogos em janela sem borda podem não ser detectados como tela cheia.
-- O executável não é assinado; o Windows pode avisar na primeira execução.
+Código sob a [GNU General Public License v3.0 ou posterior](LICENSE). As imagens e os textos de `assets/`
+não estão cobertos por esta licença; veja [assets/LEIA-ME.txt](assets/LEIA-ME.txt).
