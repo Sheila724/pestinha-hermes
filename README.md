@@ -1,6 +1,7 @@
 # Pestinha + Hermes
 
-Um pet de tela que ganhou um cérebro na nuvem.
+Um pet de tela que ganhou um cérebro na nuvem. Baseado no [Pestinha](https://github.com/mille-okws/pestinha),
+criado por [mille-okws](https://github.com/mille-okws).
 
 O **Pestinha** é um pet de desktop (Python + Qt) que vive no monitor, reage ao que acontece no computador e
 aprende com uma rede neural própria. Este projeto liga o pet a um **agente de IA**, o
@@ -110,8 +111,10 @@ O CI roda os dois conjuntos separadamente, cada um só quando a sua parte muda.
 
 ## Créditos e licença
 
-O Pestinha original e a rede neural do pet vêm do projeto em que este é baseado; a integração com o Hermes,
-a ponte e o deploy são deste repositório. <!-- Coloque aqui o nome e o link do autor original do Pestinha. -->
+O **Pestinha** foi criado por [**mille-okws**](https://github.com/mille-okws): o pet, a rede neural, os
+personagens e todo o comportamento vêm do [projeto original](https://github.com/mille-okws/pestinha).
+Este repositório parte dele e acrescenta a integração com o Hermes: a ponte, o cliente no pet, os dois
+cérebros, os avisos do lado de fora e o deploy na VPS.
 
 Código sob a [GNU General Public License v3.0 ou posterior](LICENSE). As imagens e os textos de `assets/`
 não estão cobertos por esta licença; veja [assets/LEIA-ME.txt](assets/LEIA-ME.txt).
