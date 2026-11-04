@@ -174,3 +174,13 @@ def test_evento_de_acao(cliente):
     ev = cliente.get("/api/eventos", headers=AUTH).json()["eventos"][-1]
     assert ev["tipo"] == "acao" and ev["acao"] == "bolinha"
     assert cliente.post("/interno/eventos", headers=AUTH, json={"tipo": "acao", "acao": "voar"}).status_code == 422
+
+
+@pytest.mark.parametrize("bruta, limpo", [
+    ("Vai, cochilo no lugar! Tchê... ótimo,", "Vai, cochilo no lugar! Tchê... ótimo"),
+    ("[Petição atendida] Pega meu bOCALzinho e vai embora... }|", "Pega meu bOCALzinho e vai embora..."),
+    ("**Oba!** Bolinha!", "Oba! Bolinha!"),
+    ("Quatro… tá?", "Quatro… tá?"),
+])
+def test_limpa_lixo_do_modelo(bruta, limpo):
+    assert acoes.separar_acao(bruta + "\n[acao: dormir]") == (limpo, "dormir")
