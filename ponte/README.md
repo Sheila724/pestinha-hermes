@@ -20,6 +20,8 @@ VPN: só precisa de saída HTTPS.
 | `GET /api/eventos?desde=N` | sim | Eventos com id maior que `N` (`falar`, `humor` ou `acao`) e o `ultimo` id |
 | `POST /api/perguntar` `{"texto": "...", "estado": {...}}` | sim | Pergunta ao Hermes; devolve `{"resposta": "..."}` e, se ele pediu algo ao corpo, `"acao"` |
 | `GET /api/perfil` / `POST /api/perfil` `{"cidade": "Franca, SP", "entrada": "08:00", "saida": "18:00"}` | sim | Cidade e horários dos avisos do lado de fora |
+| `POST /api/dia` `{"data": "2026-11-04", "emocoes": {...}, "contagens": {...}}` | sim | Resumo do dia do pet, para o diário |
+| `GET /api/diario?quantas=5` | sim | As últimas páginas do diário |
 | `POST /interno/eventos` `{"texto": "..."}`, `{"tipo": "humor", "humor": "feliz"}` ou `{"tipo": "acao", "acao": "dormir"}` | sim | Só da própria VPS: põe algo na fila do pet |
 
 O `estado` (opcional) é `{"emocao": "bravo", "energia": 0.3, "dormindo": false}`: vira uma linha de contexto
@@ -59,6 +61,9 @@ systemctl --user daemon-reload
 systemctl --user enable --now pestinha-lado-de-fora.timer
 systemctl --user list-timers | grep lado
 ```
+
+O mesmo timer escreve a página do diário às 21h (no fuso da cidade), se o pet mandou o resumo do dia
+(`python -m ponte.diario --agora` escreve na hora, para testar).
 
 Para testar sem esperar o horário (manda o aviso de saída na hora):
 

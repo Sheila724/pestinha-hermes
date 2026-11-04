@@ -7,6 +7,8 @@ Rotas:
   POST /api/perguntar      você clica no pet, digita, e o Hermes responde
   GET  /api/perfil         cidade e horários escolhidos (para os avisos do lado de fora)
   POST /api/perfil         escolhe a cidade ("Franca, SP", "Lisboa") e os horários de entrada e saída
+  POST /api/dia            o pet manda o resumo do dia dele (emoções e contagens) para o diário
+  GET  /api/diario         as últimas páginas do diário que o pet escreveu
   POST /interno/eventos    só da própria VPS (cron do Hermes, scripts): põe uma fala, humor ou ação na fila
 
 Tudo em /api e /interno exige "Authorization: Bearer <PONTE_TOKEN>".
@@ -20,6 +22,7 @@ from pydantic import BaseModel, Field
 
 from . import config as config_mod
 from . import acoes, clima, hermes
+from .diario import Diario, limpar_resumo
 from .eventos import Eventos
 from .perfil import PADRAO, Perfil, hora_valida
 
@@ -44,6 +47,12 @@ class NovoPerfil(BaseModel):
     saida: str = Field(default=PADRAO["saida"], max_length=5)
 
 
+class ResumoDia(BaseModel):
+    data: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    emocoes: dict = Field(default_factory=dict)
+    contagens: dict = Field(default_factory=dict)
+
+
 class NovoEvento(BaseModel):
     tipo: str = "falar"
     texto: str = Field(default="", max_length=500)
@@ -55,6 +64,7 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar):
     cfg = cfg or config_mod.carregar()
     eventos = Eventos(cfg.banco)
     perfil = Perfil(cfg.banco)
+    diario = Diario(cfg.banco)
     app = FastAPI(title="Ponte do Pestinha", docs_url=None, redoc_url=None, openapi_url=None)
 
     def autorizado(request: Request):
@@ -107,6 +117,15 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar):
         dados = {**lugar, "cidade": p.cidade.strip(), "entrada": entrada, "saida": saida}
         perfil.gravar(dados)
         return dados
+
+    @app.post("/api/dia", dependencies=[Depends(autorizado)])
+    def guardar_dia(r: ResumoDia):
+        diario.guardar_dia(r.data, limpar_resumo(r.model_dump()))
+        return {"ok": True}
+
+    @app.get("/api/diario", dependencies=[Depends(autorizado)])
+    def ler_diario(quantas: int = Query(default=7, ge=1, le=60)):
+        return {"paginas": diario.paginas(quantas)}
 
     @app.post("/interno/eventos", dependencies=[Depends(so_local), Depends(autorizado)])
     def adicionar(e: NovoEvento):

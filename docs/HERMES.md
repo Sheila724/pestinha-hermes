@@ -67,6 +67,24 @@ Feriados nacionais do Brasil, inclusive os móveis (Carnaval, Sexta-feira Santa,
 calculados na própria ponte; em feriado e no fim de semana ele não avisa. O Hermes escreve cada aviso no
 jeito do pet; se ele não responder, vai uma frase pronta com o principal.
 
+## Diário do Pestinha
+
+Ao longo do dia, o pet anota **só números** sobre a própria vida (`pestinha/mind/diario.py`): minutos em
+cada emoção e quantas cutucadas, carinhos, castigos, fugas, travessuras, dispensas, cochilos, protestos,
+perguntas e pedidos obedecidos ou recusados. Nada do que aparece na sua tela. O resumo fica em
+`memory/diario_hoje.json` e vai para a ponte a cada 10 minutos e ao fechar o pet.
+
+Às 21h (no fuso da cidade escolhida), o mesmo timer dos avisos pede ao Hermes uma página de diário em
+primeira pessoa, dramática, com até 5 frases. No dia seguinte, um post-it avisa que tem página nova, e o
+menu **Ler meu diário...** mostra as últimas cinco.
+
+Para testar sem esperar a noite, na VPS:
+
+```bash
+cd ~/pestinha-hermes/ponte && set -a; . ~/.config/pestinha/ponte.env; set +a
+.venv/bin/python -m ponte.diario --agora
+```
+
 ## Ainda não
 
 - Eventos `humor` chegam, mas ainda não mexem na emoção do pet (só vão para o log).

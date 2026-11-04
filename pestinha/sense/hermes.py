@@ -28,6 +28,12 @@ def encurtar(texto, limite=MAX_TEXTO):
     return texto if len(texto) <= limite else texto[: limite - 1].rstrip() + "…"
 
 
+def formatar_data(iso):
+    """'2026-11-04' -> '04/11/2026' (o resto passa como veio)."""
+    partes = str(iso).split("-")
+    return "/".join(reversed(partes)) if len(partes) == 3 else str(iso)
+
+
 def carregar_config(caminho, avisar=None):
     """
     {"url", "token"} de memory/hermes.json, ou None se não existe ou está incompleto.
@@ -83,7 +89,7 @@ class ClienteHermes:
         self._parar.set()
 
     def coletar(self):
-        """Tudo o que chegou desde a última chamada: lista de ("falar"|"humor"|"acao"|"resposta"|"erro", texto)."""
+        """Tudo o que chegou desde a última chamada: ("falar"|"humor"|"acao"|"resposta"|"erro"|"diario", texto)."""
         itens = []
         while True:
             try:
@@ -110,7 +116,36 @@ class ClienteHermes:
         if corpo["cidade"]:
             threading.Thread(target=self._configurar_perfil, args=(corpo,), name="hermes-perfil", daemon=True).start()
 
+    def enviar_dia(self, resumo, esperar=False):
+        """Manda o resumo do dia (para o diário). `esperar` segura até 3 s, para dar tempo ao fechar o app."""
+        t = threading.Thread(target=self._enviar_dia, args=(resumo,), name="hermes-dia", daemon=True)
+        t.start()
+        if esperar:
+            t.join(timeout=3.0)
+
+    def ler_diario(self):
+        """Busca as últimas páginas do diário; chegam em coletar() como ("diario", texto) ou ("erro", ...)."""
+        threading.Thread(target=self._ler_diario, name="hermes-diario", daemon=True).start()
+
     # ---------- por dentro ----------
+
+    def _enviar_dia(self, resumo):
+        try:
+            self._pedido("/api/dia", resumo)
+        except (OSError, urllib.error.URLError, ValueError, KeyError, TypeError):
+            pass                            # tenta de novo no próximo envio; o resumo é cumulativo
+
+    def _ler_diario(self):
+        try:
+            paginas = self._pedido("/api/diario?quantas=5")["paginas"]
+        except (OSError, urllib.error.URLError, ValueError, KeyError, TypeError):
+            self._chegou.put(("erro", "Não consegui buscar meu diário agora."))
+            return
+        if not paginas:
+            self._chegou.put(("falar", "Meu diário ainda está em branco. Hoje à noite eu escrevo!"))
+            return
+        texto = "\n\n".join(f"{formatar_data(p['data'])}\n{p['texto']}" for p in paginas)
+        self._chegou.put(("diario", texto))
 
     def _configurar_perfil(self, corpo):
         try:
