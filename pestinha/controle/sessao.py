@@ -196,6 +196,8 @@ class SessaoMixin:
         """Salva tudo e fecha o programa; um erro no caminho nunca impede de fechar."""
         try:
             self.save()
+            if getattr(self, "hermes", None):
+                self.hermes.parar()
             self.mesa.fechar()
             self.festa.fechar()
             self.revolucao.fechar()

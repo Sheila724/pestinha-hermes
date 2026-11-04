@@ -15,6 +15,7 @@ from ..body.pet import overlay_flags, set_no_activate
 from ..ajustes import GRAVIDADE as GRAVITY
 
 NOTE_SIZE = (180, 150)
+NOTE_SIZE_FALA = (250, 200)      # falas do Hermes: frases maiores que os recadinhos
 
 
 class Thing(QWidget):
@@ -89,9 +90,9 @@ class ImageThing(Thing):
 
 class NoteThing(Thing):
     """Post-it com uma frase, num papel amarelo."""
-    def __init__(self, text, small=False):
-        """Monta o post-it com o texto; `small` é o tamanho de canto (bilhete de revolta)."""
-        w, h = NOTE_SIZE
+    def __init__(self, text, small=False, size=None):
+        """Monta o post-it com o texto; `small` é o tamanho de canto (bilhete de revolta), `size` um tamanho próprio."""
+        w, h = size or NOTE_SIZE
         if small:
             w, h = int(w * 0.75), int(h * 0.75)
         super().__init__(w + 20, h + 20)

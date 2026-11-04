@@ -257,6 +257,16 @@ class Paths:
         """Log do programa (sem conteúdo de janelas)."""
         return self.memory / "logs" / "pestinha.log"
 
+    @property
+    def hermes(self):
+        """Endereço e token da ponte com o Hermes ({"url", "token"}). Sem ele, o Hermes fica desligado."""
+        return self.memory / "hermes.json"
+
+    @property
+    def hermes_ultimo(self):
+        """Último evento do Hermes já mostrado (para não repetir nem perder falas ao reabrir)."""
+        return self.memory / "hermes_ultimo.txt"
+
     # ----- estado de cada personagem -----
 
     @property
