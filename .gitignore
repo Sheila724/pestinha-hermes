@@ -15,3 +15,8 @@ instalador/saida/
 *.corrompido
 *.log
 scratch_*.py
+
+# Segredos
+noc_horizon.json
+.env
+*.env
