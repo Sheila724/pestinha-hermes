@@ -15,7 +15,15 @@ Crie `memory/hermes.json` (a pasta `memory/` nunca vai para o Git):
 {"url": "https://pestinha.exemplo.com.br", "token": "<PONTE_TOKEN da VPS>"}
 ```
 
-Abra o Pestinha de novo. Sem esse arquivo, o Hermes fica desligado e nada muda.
+No PowerShell, um jeito seguro de criar (sem depender da codificação):
+
+```powershell
+[IO.File]::WriteAllText("$env:LOCALAPPDATA\Pestinha\hermes.json", '{"url": "https://...", "token": "..."}')
+```
+
+(Use `memory\hermes.json` ao lado do `.exe` se essa pasta existir.) Abra o Pestinha de novo e procure
+`[hermes] ligado` no log. Sem esse arquivo, o Hermes fica desligado e nada muda; com o arquivo
+ilegível ou incompleto, o log diz o motivo.
 
 ## O que ele faz
 

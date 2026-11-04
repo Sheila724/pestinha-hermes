@@ -28,17 +28,26 @@ def encurtar(texto, limite=MAX_TEXTO):
     return texto if len(texto) <= limite else texto[: limite - 1].rstrip() + "…"
 
 
-def carregar_config(caminho):
-    """{"url", "token"} de memory/hermes.json, ou None se não existe ou está incompleto."""
+def carregar_config(caminho, avisar=None):
+    """
+    {"url", "token"} de memory/hermes.json, ou None se não existe ou está incompleto.
+    Aceita o arquivo com BOM (o Set-Content -Encoding utf8 do PowerShell 5.1 grava assim).
+    `avisar(texto)` é chamado quando o arquivo existe mas não dá para usar, para não desligar calado.
+    """
+    caminho = Path(caminho)
+    if not caminho.exists():
+        return None
     try:
-        dados = json.loads(Path(caminho).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        dados = json.loads(caminho.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError) as erro:
+        if avisar:
+            avisar(f"[hermes] {caminho.name} ilegível, Hermes desligado: {erro}")
         return None
-    if not isinstance(dados, dict):
-        return None
-    url = str(dados.get("url", "")).strip().rstrip("/")
-    token = str(dados.get("token", "")).strip()
+    url = str(dados.get("url", "")).strip().rstrip("/") if isinstance(dados, dict) else ""
+    token = str(dados.get("token", "")).strip() if isinstance(dados, dict) else ""
     if not url.startswith(("https://", "http://")) or not token:
+        if avisar:
+            avisar(f"[hermes] {caminho.name} precisa de \"url\" (https://...) e \"token\"; Hermes desligado")
         return None
     return {"url": url, "token": token}
 
@@ -58,8 +67,8 @@ class ClienteHermes:
         self._ultimo = self._ler_ultimo()
 
     @classmethod
-    def de_arquivo(cls, config_json, arquivo_ultimo, **kw):
-        cfg = carregar_config(config_json)
+    def de_arquivo(cls, config_json, arquivo_ultimo, avisar=None, **kw):
+        cfg = carregar_config(config_json, avisar)
         return cls(cfg["url"], cfg["token"], arquivo_ultimo, **kw) if cfg else None
 
     # ---------- o que o app usa ----------

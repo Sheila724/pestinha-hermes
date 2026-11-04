@@ -115,6 +115,27 @@ def test_config_valida(tmp_path):
     assert hermes.carregar_config(tmp_path / "hermes.json") == {"url": "https://pet.exemplo", "token": "abc"}
 
 
+def test_config_com_bom_do_powershell(tmp_path):
+    arquivo = tmp_path / "hermes.json"
+    arquivo.write_bytes(b"\xef\xbb\xbf" + b'{"url": "https://pet.exemplo", "token": "abc"}')
+    assert hermes.carregar_config(arquivo) == {"url": "https://pet.exemplo", "token": "abc"}
+
+
+@pytest.mark.parametrize("conteudo, trecho", [("{quebrado", "ilegível"), ('{"url": "pet.exemplo"}', "precisa de")])
+def test_config_ruim_avisa_no_log(tmp_path, conteudo, trecho):
+    arquivo = tmp_path / "hermes.json"
+    arquivo.write_text(conteudo, encoding="utf-8")
+    avisos = []
+    assert hermes.ClienteHermes.de_arquivo(arquivo, tmp_path / "u.txt", avisar=avisos.append) is None
+    assert len(avisos) == 1 and trecho in avisos[0]
+
+
+def test_sem_arquivo_nao_avisa(tmp_path):
+    avisos = []
+    assert hermes.carregar_config(tmp_path / "nao_existe.json", avisos.append) is None
+    assert avisos == []
+
+
 def test_encurtar_cabe_no_post_it():
     assert hermes.encurtar("  oi\n  tudo   bem? ") == "oi tudo bem?"
     longo = hermes.encurtar("palavra " * 100)
