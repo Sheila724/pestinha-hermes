@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 
 from . import acoes, calendario, clima, diario, hermes
 from . import config as config_mod
+from .conversa import Conversa
 from .eventos import Eventos
 from .perfil import PADRAO, Perfil
 
@@ -92,7 +93,7 @@ def momento_agora(perfil, agora, forcar=False):
 
 
 def verificar(cfg, perfil, eventos, agora_utc=None, forcar=False,
-              buscar_previsao=clima.previsao, perguntar=hermes.perguntar):
+              buscar_previsao=clima.previsao, perguntar=hermes.perguntar, conversa=None):
     """Manda o aviso da hora, se for a hora e ainda não tiver ido hoje. Devolve o id do evento ou None."""
     lugar = perfil.ler()
     if not lugar:
@@ -106,14 +107,16 @@ def verificar(cfg, perfil, eventos, agora_utc=None, forcar=False,
     except clima.ClimaErro:
         prev = None
     texto = escrever(cfg, momento, lugar, fatos(momento, lugar, prev, agora), perguntar)
+    if conversa is not None:
+        conversa.anotar("assistant", texto)          # para dar para responder ao aviso ("e amanhã?")
     return eventos.adicionar("falar", {"texto": texto})
 
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     cfg = config_mod.carregar()
-    perfil, eventos = Perfil(cfg.banco), Eventos(cfg.banco)
-    novo = verificar(cfg, perfil, eventos, forcar="--agora" in argv)
+    perfil, eventos, conversa = Perfil(cfg.banco), Eventos(cfg.banco), Conversa(cfg.banco)
+    novo = verificar(cfg, perfil, eventos, forcar="--agora" in argv, conversa=conversa)
     print(f"aviso enviado (evento {novo})" if novo else "nada para avisar agora")
     pagina = diario.verificar(cfg, diario.Diario(cfg.banco), perfil, eventos)   # o mesmo timer escreve o diário
     if pagina:

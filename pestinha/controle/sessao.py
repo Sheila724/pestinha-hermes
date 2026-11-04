@@ -199,6 +199,8 @@ class SessaoMixin:
             if getattr(self, "hermes", None):
                 self.anotar_diario(forcar_envio=True)      # o resumo do dia vai antes de fechar
                 self.hermes.parar()
+                if self.balao:
+                    self.balao.close()
             self.mesa.fechar()
             self.festa.fechar()
             self.revolucao.fechar()

@@ -352,6 +352,16 @@ class Tray(QObject):
 # ============================================================
 
 
+class ConversaHotkey(QObject):
+    """Ctrl+Alt+P em qualquer lugar abre o balão de conversa (Windows). Avisa o Qt por sinal, entre threads."""
+
+    pressed = Signal()
+
+    def __init__(self):
+        super().__init__()
+        self.ok = plataforma.iniciar_atalho_conversa(self.pressed.emit)
+
+
 class PanicHotkey(QObject):
     """Registra o atalho pela plataforma (Windows, macOS ou Linux); avisa o Qt por sinal."""
 

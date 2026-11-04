@@ -618,3 +618,115 @@ def test_sem_hermes_sem_diario(tmp_path):
         app.contar_no_diario("cutucadas")
     finally:
         _fechar(app)
+
+
+# ---------------- conversa mais fácil: balão, atalho, responder post-it ----------------
+
+from PySide6.QtCore import Qt  # noqa: E402
+from PySide6.QtTest import QTest  # noqa: E402
+
+
+def test_balao_envia_com_enter_e_fecha(tmp_path):
+    from pestinha.ui.balao import BalaoDeConversa
+    _app_qt = _app(tmp_path, com_hermes=False)
+    try:
+        b = BalaoDeConversa("Uptime")
+        recebidos = []
+        b.enviado.connect(lambda t, r: recebidos.append((t, r)))
+        b.abrir(10, 10, (0, 0, 800, 600), respondendo="Leva o guarda-chuva hoje, viu? Vai chover muito à tarde em Franca e eu não quero ver você molhada!")
+        assert b.isVisible() and b.citacao.isVisible() and "Respondendo" in b.citacao.text()
+        assert b.citacao.text().endswith("…”")                   # citação longa é encurtada
+        assert b.x() >= 4 and b.y() >= 4                          # perto da borda: fica dentro da tela
+        b.campo.setText("  e amanhã?  ")                        # keyClicks do QTest só aceita ASCII
+        QTest.keyClick(b.campo, Qt.Key_Return)
+        assert recebidos == [("e amanhã?", "Leva o guarda-chuva hoje, viu? Vai chover muito à tarde em Franca e eu não quero ver você molhada!")]
+        assert not b.isVisible()
+        b.abrir(400, 300, (0, 0, 800, 600))
+        assert not b.citacao.isVisible() and b.campo.text() == ""
+        QTest.keyClick(b.campo, Qt.Key_Return)                    # vazio: não envia nada
+        assert len(recebidos) == 1
+        b.abrir(400, 300, (0, 0, 800, 600))
+        QTest.keyClick(b.campo, Qt.Key_Escape)
+        assert not b.isVisible()
+        b.close()
+    finally:
+        _fechar(_app_qt)
+
+
+def test_clicar_na_fala_nao_conta_como_travessura_dispensada(ponte, tmp_path):
+    app = _app(tmp_path, com_hermes=True, url=ponte.url)
+    try:
+        dispensadas, clicadas = [], []
+        app.mischief.dismissed.connect(lambda *a: dispensadas.append(a))
+        app.mischief.fala_clicada.connect(clicadas.append)
+        app.mostrar_fala("Hoje é sexta!")
+        nota = app.mischief.things[0]
+        QTest.mouseClick(nota, Qt.LeftButton)
+        assert clicadas == ["Hoje é sexta!"] and dispensadas == [] and not app.mischief.things
+        assert app.balao.isVisible() and app.balao.respondendo == "Hoje é sexta!"
+        app.balao.hide()
+    finally:
+        _fechar(app)
+
+
+def test_clique_duplo_no_pet_abre_o_balao(ponte, tmp_path):
+    app = _app(tmp_path, com_hermes=True, url=ponte.url)
+    try:
+        app.pet.conversar.emit()
+        assert app.balao.isVisible() and app.balao.respondendo == ""
+        app.balao.hide()
+        app.paused = True
+        app.pet.conversar.emit()                                 # pausado não abre
+        assert not app.balao.isVisible()
+    finally:
+        _fechar(app)
+
+
+def test_enviar_do_balao_leva_estado_e_post_it(ponte, tmp_path, monkeypatch):
+    app = _app(tmp_path, com_hermes=True, url=ponte.url)
+    try:
+        chamadas = []
+        monkeypatch.setattr(app.hermes, "perguntar", lambda *a: chamadas.append(a))
+        app.balao.enviado.emit("e amanhã?", "Leva o guarda-chuva!")
+        texto, estado, respondendo = chamadas[0]
+        assert texto == "e amanhã?" and respondendo == "Leva o guarda-chuva!" and "emocao" in estado
+        assert [t.text for t in app.mischief.things] == ["Hmm… deixa eu pensar!"]
+        assert app.diario.resumo()["contagens"]["perguntas"] == 1
+    finally:
+        _fechar(app)
+
+
+def test_cliente_manda_o_post_it_respondido(ponte, tmp_path):
+    c = cliente(ponte, tmp_path)
+    c.perguntar("e amanhã?", None, "  Leva o guarda-chuva!  ")
+    esperar(c)
+    assert ponte.corpos[0] == {"texto": "e amanhã?", "respondendo": "Leva o guarda-chuva!"}
+
+
+def test_atalho_de_conversa_fora_do_windows_fica_desligado():
+    from pestinha import plataforma
+    import sys
+    if sys.platform != "win32":
+        assert plataforma.iniciar_atalho_conversa(lambda: None) is False
+
+
+def test_atalho_de_conversa_registra_ctrl_alt_p_no_windows(monkeypatch):
+    pytest.importorskip("winreg")                                # o módulo do Windows só importa no Windows
+    from pestinha.plataforma import windows
+
+    class User32:
+        registrado = None
+
+        def RegisterHotKey(self, hwnd, ident, mods, vk):
+            User32.registrado = (ident, mods, vk)
+            return 1
+
+        def GetMessageW(self, *a):
+            return 0
+
+    falso = type("windll", (), {"user32": User32()})
+    monkeypatch.setattr(windows.ctypes, "windll", falso, raising=False)
+    assert windows.iniciar_atalho_conversa(lambda: None) is True
+    ident, mods, vk = User32.registrado
+    assert ident == windows.HOTKEY_CONVERSA_ID != windows.HOTKEY_ID
+    assert mods == windows.MOD_CONTROL | windows.MOD_ALT | windows.MOD_NOREPEAT and vk == ord("P")

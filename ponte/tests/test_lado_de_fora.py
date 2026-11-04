@@ -196,3 +196,12 @@ def test_rota_perfil(cfg):
     assert c.post("/api/perfil", headers=AUTH,
                   json={"cidade": "Franca", "entrada": "18:00", "saida": "08:00"}).status_code == 422
     assert c.post("/api/perfil", json={"cidade": "Franca"}).status_code == 401
+
+
+def test_aviso_entra_na_memoria_da_conversa(cfg):
+    from ponte.conversa import Conversa
+    perfil, eventos, conversa = Perfil(cfg.banco), Eventos(cfg.banco), Conversa(cfg.banco)
+    perfil.gravar(FRANCA)
+    lado_de_fora.verificar(cfg, perfil, eventos, quando("2026-11-04 17:31"), buscar_previsao=lambda l: None,
+                           perguntar=lambda c, t, h=(): "Leva o guarda-chuva!", conversa=conversa)
+    assert conversa.recente() == [{"role": "assistant", "content": "Leva o guarda-chuva!"}]

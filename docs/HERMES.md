@@ -29,11 +29,27 @@ ilegível ou incompleto, o log diz o motivo.
 
 - **Falas da VPS:** o que o cron do Hermes (ou qualquer script na VPS) põe em `/interno/eventos`
   aparece como post-it perto do pet. Pausado ou escondido, as falas esperam até ele voltar.
-- **Perguntar:** botão direito no pet → *Perguntar ao Hermes...*. A resposta chega num post-it.
+- **Conversar:** clique duplo no pet, Ctrl+Alt+P ou clique num post-it dele (veja abaixo). A resposta chega num post-it.
 - **Sem travar:** a rede roda em threads próprias (`pestinha/sense/hermes.py`); com a VPS fora do ar
   ele espera cada vez mais entre tentativas (até 60 s) e o pet segue normal.
 - **Sem repetir:** o último evento mostrado fica em `memory/hermes_ultimo.txt`. Na primeira conexão,
   o histórico antigo da fila não é despejado na tela.
+
+## Conversar
+
+Três jeitos de abrir o balão de conversa, que aparece em cima do pet no estilo de um post-it:
+
+- **Clique duplo no pet.**
+- **Ctrl+Alt+P** de qualquer lugar (Windows). Se o pet estiver escondido, ele volta para conversar.
+- **Clicar num post-it dele.** O balão abre mostrando o que ele disse, e a resposta continua a partir dali
+  ("e amanhã?" depois de um aviso de chuva). Clicar numa fala do Hermes não conta como travessura
+  dispensada: o pet não fica frustrado por isso.
+
+**Enter** envia, **Esc** fecha. O menu do botão direito também tem **Conversar**.
+
+A ponte guarda uma **memória curta** (as últimas 8 mensagens, esquecidas depois de 30 minutos sem
+conversa), inclusive as falas que o pet mandou sozinho, como os avisos de clima. Assim dá para conversar
+em vez de fazer perguntas soltas. **Começar conversa nova**, no menu, apaga essa memória.
 
 ## Dois cérebros: instinto e razão
 
