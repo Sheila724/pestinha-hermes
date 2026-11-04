@@ -149,6 +149,7 @@ class InteracaoMixin:
         item("Fazer uma travessura agora", self.menu_mischief, perms["travessuras"])
         if getattr(self, "hermes", None):
             item("Perguntar ao Hermes...", self.menu_perguntar_hermes, not self._congelado())
+            item("Minha cidade e horários...", self.menu_cidade_hermes)
         menu.addSeparator()
         item("Cantinho do castigo", lambda: self.castigo.toggle(self.bounds()))
         item("Painel de protesto", lambda: self.floats.toggle("greve"))
@@ -166,6 +167,22 @@ class InteracaoMixin:
         if texto:
             self.hermes.perguntar(texto, self.estado_para_hermes())
             self.mostrar_fala("Hmm… deixa eu pensar!")
+
+    def menu_cidade_hermes(self):
+        """Menu: cidade e horários de entrada e saída, para ele comentar o clima, a sexta-feira e os feriados."""
+        atual = self.hermes.perfil or {}
+        cidade, ok = QInputDialog.getText(None, self.nome, "Sua cidade (ex.: Franca, SP ou Lisboa, Portugal):",
+                                          text=atual.get("cidade", ""))
+        if not ok or not cidade.strip():
+            return
+        entrada, ok = QInputDialog.getText(None, self.nome, "Que horas você começa? (HH:MM)",
+                                           text=atual.get("entrada", "08:00"))
+        if not ok:
+            return
+        saida, ok = QInputDialog.getText(None, self.nome, "E que horas vai embora? (HH:MM)",
+                                         text=atual.get("saida", "18:00"))
+        if ok:
+            self.hermes.configurar_perfil(cidade, entrada, saida)
 
     def menu_poke(self):
         """Menu: 'Cutucar' (ignora o intervalo mínimo entre cutucadas)."""

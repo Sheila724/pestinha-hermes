@@ -51,6 +51,22 @@ razão: conversa e pode pedir coisas ao corpo. Um não manda no outro.
   rede, que também pode recusar.
 - Scripts na VPS podem pedir uma ação direto: `POST /interno/eventos` com `{"tipo": "acao", "acao": "bolinha"}`.
 
+## Lado de fora: clima, sexta-feira e feriados
+
+Botão direito no pet → **Minha cidade e horários...**: escolha a cidade (`Franca, SP`, `Lisboa, Portugal`,
+`Porto Alegre, RS`) e os horários de entrada e saída. A ponte descobre onde fica a cidade e o fuso dela
+(Open-Meteo, gratuito e sem chave), então funciona em qualquer lugar.
+
+Em dia útil, o pet manda dois avisos, no fuso da cidade escolhida:
+
+- **Uns 5 minutos depois da entrada:** bom-dia com a mínima, a máxima e a chance de chuva do dia.
+- **Uns 30 minutos antes da saída:** chuva nas próximas horas ("leva o guarda-chuva"), feriado amanhã,
+  feriado prolongado, sexta-feira.
+
+Feriados nacionais do Brasil, inclusive os móveis (Carnaval, Sexta-feira Santa, Corpus Christi), são
+calculados na própria ponte; em feriado e no fim de semana ele não avisa. O Hermes escreve cada aviso no
+jeito do pet; se ele não responder, vai uma frase pronta com o principal.
+
 ## Ainda não
 
 - Eventos `humor` chegam, mas ainda não mexem na emoção do pet (só vão para o log).

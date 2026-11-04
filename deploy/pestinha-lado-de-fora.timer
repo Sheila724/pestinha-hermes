@@ -1,0 +1,11 @@
+# Confere de 15 em 15 minutos se é hora de um aviso (cada aviso sai uma vez por dia).
+# ~/.config/systemd/user/pestinha-lado-de-fora.timer
+[Unit]
+Description=Pestinha: confere os avisos do lado de fora a cada 15 minutos
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=false
+
+[Install]
+WantedBy=timers.target

@@ -19,6 +19,7 @@ VPN: só precisa de saída HTTPS.
 | `GET /saude` | não | Monitoramento |
 | `GET /api/eventos?desde=N` | sim | Eventos com id maior que `N` (`falar`, `humor` ou `acao`) e o `ultimo` id |
 | `POST /api/perguntar` `{"texto": "...", "estado": {...}}` | sim | Pergunta ao Hermes; devolve `{"resposta": "..."}` e, se ele pediu algo ao corpo, `"acao"` |
+| `GET /api/perfil` / `POST /api/perfil` `{"cidade": "Franca, SP", "entrada": "08:00", "saida": "18:00"}` | sim | Cidade e horários dos avisos do lado de fora |
 | `POST /interno/eventos` `{"texto": "..."}`, `{"tipo": "humor", "humor": "feliz"}` ou `{"tipo": "acao", "acao": "dormir"}` | sim | Só da própria VPS: põe algo na fila do pet |
 
 O `estado` (opcional) é `{"emocao": "bravo", "energia": 0.3, "dormindo": false}`: vira uma linha de contexto
@@ -45,6 +46,25 @@ cp ../deploy/pestinha-ponte.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now pestinha-ponte
 curl -s http://127.0.0.1:8765/saude
+```
+
+## Avisos do lado de fora (clima e calendário)
+
+`python -m ponte.lado_de_fora` confere se é hora de um aviso (manhã ou saída) na cidade escolhida pelo pet e,
+se for, põe a fala na fila. Para rodar sozinho de 15 em 15 minutos:
+
+```bash
+cp ../deploy/pestinha-lado-de-fora.service ../deploy/pestinha-lado-de-fora.timer ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now pestinha-lado-de-fora.timer
+systemctl --user list-timers | grep lado
+```
+
+Para testar sem esperar o horário (manda o aviso de saída na hora):
+
+```bash
+set -a; . ~/.config/pestinha/ponte.env; set +a
+.venv/bin/python -m ponte.lado_de_fora --agora
 ```
 
 ## Desenvolver

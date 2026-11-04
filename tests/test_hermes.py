@@ -445,3 +445,50 @@ def test_estado_para_hermes(ponte, tmp_path):
         assert estado["emocao"] == app.emotion.current and 0 <= estado["energia"] <= 1
     finally:
         _fechar(app)
+
+
+# ---------------- lado de fora: cidade e horários ----------------
+
+class PontePerfil(PonteFalsa):
+    """A ponte de mentira, com /api/perfil."""
+
+    def __init__(self, status=200):
+        super().__init__()
+        self.status_perfil = status
+        handler = self.servidor.RequestHandlerClass
+        original = handler.do_POST
+        fake = self
+
+        def do_post(h):
+            if h.path != "/api/perfil":
+                return original(h)
+            corpo = json.loads(h.rfile.read(int(h.headers["Content-Length"])))
+            fake.corpos.append(corpo)
+            if fake.status_perfil != 200:
+                return h._json(fake.status_perfil, {"detail": "não"})
+            h._json(200, {**corpo, "nome": "Franca, São Paulo", "fuso": "America/Sao_Paulo"})
+
+        handler.do_POST = do_post
+
+
+@pytest.mark.parametrize("status, esperado", [
+    (200, ("resposta", "Agora eu olho o céu de Franca, São Paulo! Aviso entre 08:00 e 18:00.")),
+    (404, ("erro", "Não achei essa cidade. Tenta 'Cidade, UF' ou 'Cidade, País'.")),
+    (422, ("erro", "Horário estranho… use HH:MM, a entrada antes da saída.")),
+])
+def test_configurar_cidade(tmp_path, status, esperado):
+    p = PontePerfil(status)
+    try:
+        c = cliente(p, tmp_path)
+        c.configurar_perfil(" Franca, SP ", "08:00", "18:00")
+        assert esperar(c) == [esperado]
+        assert p.corpos[0] == {"cidade": "Franca, SP", "entrada": "08:00", "saida": "18:00"}
+        assert (c.perfil is not None) == (status == 200)
+    finally:
+        p.fechar()
+
+
+def test_cidade_vazia_nao_sai(ponte, tmp_path):
+    c = cliente(ponte, tmp_path)
+    c.configurar_perfil("  ", "08:00", "18:00")
+    assert esperar(c, segundos=0.3) == [] and ponte.corpos == []
