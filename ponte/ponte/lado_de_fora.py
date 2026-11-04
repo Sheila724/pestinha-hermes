@@ -5,6 +5,7 @@ Roda de 15 em 15 minutos (deploy/pestinha-lado-de-fora.timer) e, em dia útil, m
   manha   logo depois da entrada: bom-dia com a previsão do dia
   saida   uns 30 min antes da saída: chuva na volta para casa, feriado amanhã, sexta-feira
 Cada aviso sai uma vez por dia. O Hermes escreve a frase no jeito do pet; se ele falhar, vai uma frase pronta.
+O mesmo disparo escreve a página do diário à noite (ponte/diario.py).
 
 Uso manual (na pasta ponte/, com o ponte.env carregado):
     python -m ponte.lado_de_fora            confere o horário e manda o que for a hora
@@ -14,7 +15,7 @@ import datetime as dt
 import sys
 from zoneinfo import ZoneInfo
 
-from . import acoes, calendario, clima, hermes
+from . import acoes, calendario, clima, diario, hermes
 from . import config as config_mod
 from .eventos import Eventos
 from .perfil import PADRAO, Perfil
@@ -111,8 +112,12 @@ def verificar(cfg, perfil, eventos, agora_utc=None, forcar=False,
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     cfg = config_mod.carregar()
-    novo = verificar(cfg, Perfil(cfg.banco), Eventos(cfg.banco), forcar="--agora" in argv)
+    perfil, eventos = Perfil(cfg.banco), Eventos(cfg.banco)
+    novo = verificar(cfg, perfil, eventos, forcar="--agora" in argv)
     print(f"aviso enviado (evento {novo})" if novo else "nada para avisar agora")
+    pagina = diario.verificar(cfg, diario.Diario(cfg.banco), perfil, eventos)   # o mesmo timer escreve o diário
+    if pagina:
+        print(f"página do diário escrita ({pagina})")
 
 
 if __name__ == "__main__":

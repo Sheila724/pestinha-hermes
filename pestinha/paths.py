@@ -263,6 +263,11 @@ class Paths:
         return self.memory / "hermes.json"
 
     @property
+    def diario_hoje(self):
+        """O que o pet viveu hoje (minutos por emoção e contagens), para o diário que o Hermes escreve à noite."""
+        return self.memory / "diario_hoje.json"
+
+    @property
     def hermes_ultimo(self):
         """Último evento do Hermes já mostrado (para não repetir nem perder falas ao reabrir)."""
         return self.memory / "hermes_ultimo.txt"

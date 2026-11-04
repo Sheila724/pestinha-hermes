@@ -63,6 +63,7 @@ from .core.nervous_system import LIFBrain
 from .core.protesto import Protesto
 from .log import log
 from .mind import obediencia
+from .mind.diario import DiarioDoDia
 from .mind.castigo_ctl import CastigoController
 from .mind.festa import FestaController
 from .mind.mesa import MesaController, pull
@@ -81,6 +82,7 @@ MAX_DT = 2.0          # s: um atraso maior que isso (suspensão) não vira tempo
 
 SAVE_EVERY_MS = 30_000
 HERMES_MS = 1_000          # de quanto em quanto tempo o app recolhe o que o Hermes mandou
+DIARIO_ENVIO_S = 600       # de quanto em quanto tempo o resumo do dia vai para a ponte
 
 
 class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
@@ -227,6 +229,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
 
         # ----- Hermes (cérebro na VPS): só liga se existir memory/hermes.json -----
         self.hermes = hermes.ClienteHermes.de_arquivo(self.paths.hermes, self.paths.hermes_ultimo, avisar=log)
+        self.diario = DiarioDoDia(self.paths.diario_hoje) if self.hermes else None
+        self._diario_amostra = self._diario_envio = time.monotonic()
         if self.hermes:
             self.hermes.iniciar()
             self._timer(HERMES_MS, self.receber_hermes)
@@ -256,13 +260,34 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         """Mostra o que chegou do Hermes. Pausado ou escondido, deixa esperando na fila até voltar."""
         if self._congelado() or self.hidden:
             return
+        self.anotar_diario()
         for tipo, texto in self.hermes.coletar():
             if tipo in ("falar", "resposta", "erro"):
                 self.mostrar_fala(texto)
             elif tipo == "acao":
                 self.pedido_do_hermes(texto)
+            elif tipo == "diario":
+                self.mostrar_diario(texto)
             elif tipo == "humor":
                 log(f"[hermes] humor recebido (ainda sem efeito): {texto}")
+
+    def anotar_diario(self, forcar_envio=False):
+        """Amostra o estado para o diário do dia e, de tempos em tempos, manda o resumo para a ponte."""
+        if not self.diario:
+            return
+        agora = time.monotonic()
+        self.diario.observar(agora - self._diario_amostra, self.emotion.current, dormindo=bool(self.asleep),
+                             carinho=self.pet_state.feliz_fechado(agora), castigo=bool(self.castigo.dentro),
+                             ultima_fuga=self.castigo.ultima_fuga_em, protesto=self.protest.stage)
+        self._diario_amostra = agora
+        if forcar_envio or agora - self._diario_envio >= DIARIO_ENVIO_S:
+            self._diario_envio = agora
+            self.diario.salvar()
+            self.hermes.enviar_dia(self.diario.resumo(), esperar=forcar_envio)
+
+    def contar_no_diario(self, nome):
+        if getattr(self, "diario", None):
+            self.diario.contar(nome)
 
     def estado_para_hermes(self):
         """Como o pet está agora, para o Hermes falar no tom certo (só emoção e energia, nada da sua tela)."""
@@ -277,6 +302,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             return
         obedece, fala = obediencia.decidir(acao, self.emotion.current, self.drives.energy, self.asleep)
         log(f"[hermes] pedido '{acao}' com emoção {self.emotion.current}: {'obedeceu' if obedece else 'recusou'}")
+        self.contar_no_diario("obedeceu" if obedece else "recusou")
         if not obedece:
             if fala:
                 self.mostrar_fala(fala)
@@ -626,12 +652,14 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         )
         if comentou:
             return
-        self.mischief_ctl.maybe_act(
+        acao = self.mischief_ctl.maybe_act(
             now, dt, bounds, cursor, self.pet.body, motores=motores,
             activity=self.activity, emotion=self.pet_state.emotion, perms=self.perms, prof=self.prof,
             fullscreen=self.fullscreen, asleep=self.asleep, protest_stage=self.protest.stage,
             working=self.trabalhando() and not self.mesa.sentado,
         )
+        if acao and acao != "nada":
+            self.contar_no_diario("travessuras")
 
     # ---------------- interação ----------------
 

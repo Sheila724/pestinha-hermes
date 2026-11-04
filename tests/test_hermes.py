@@ -492,3 +492,129 @@ def test_cidade_vazia_nao_sai(ponte, tmp_path):
     c = cliente(ponte, tmp_path)
     c.configurar_perfil("  ", "08:00", "18:00")
     assert esperar(c, segundos=0.3) == [] and ponte.corpos == []
+
+
+# ---------------- diário do dia ----------------
+
+import datetime as dt  # noqa: E402
+
+from pestinha.mind.diario import DiarioDoDia  # noqa: E402
+
+
+def amostra(d, dt_s=1.0, emocao="feliz", **kw):
+    estado = dict(dormindo=False, carinho=False, castigo=False, ultima_fuga=None, protesto=0)
+    estado.update(kw)
+    d.observar(dt_s, emocao, **estado)
+
+
+def test_diario_soma_minutos_e_conta_viradas(tmp_path):
+    d = DiarioDoDia(tmp_path / "d.json", hoje=lambda: dt.date(2026, 11, 4))
+    for _ in range(120):
+        amostra(d, emocao="bravo")                       # 2 min bravo
+    amostra(d, carinho=True)
+    amostra(d, carinho=True)                             # carinho contínuo conta uma vez
+    amostra(d)
+    amostra(d, carinho=True)                             # outro carinho
+    amostra(d, dormindo=True, emocao="dormindo")
+    amostra(d, castigo=True)
+    amostra(d, ultima_fuga=100.0)
+    amostra(d, ultima_fuga=100.0)
+    amostra(d, ultima_fuga=None)                         # fuga desfeita não desconta
+    amostra(d, protesto=2)
+    amostra(d, protesto=3)                               # mesma manifestação subindo de estágio
+    amostra(d, dt_s=3600)                                # computador dormiu: não vira uma hora de emoção
+    d.contar("cutucadas")
+    d.contar("inventada")
+    r = d.resumo()
+    assert r["data"] == "2026-11-04"
+    assert r["emocoes"]["bravo"] == 2.0 and r["emocoes"]["feliz"] < 0.5
+    assert r["contagens"] == {"carinhos": 2, "cochilos": 1, "castigos": 1, "fugas": 1,
+                              "protestos": 1, "cutucadas": 1}
+
+
+def test_diario_persiste_e_vira_o_dia(tmp_path):
+    hoje = [dt.date(2026, 11, 4)]
+    arquivo = tmp_path / "d.json"
+    d = DiarioDoDia(arquivo, hoje=lambda: hoje[0])
+    d.contar("cutucadas", 3)
+    d.salvar()
+    assert DiarioDoDia(arquivo, hoje=lambda: hoje[0]).resumo()["contagens"] == {"cutucadas": 3}
+    hoje[0] = dt.date(2026, 11, 5)
+    assert DiarioDoDia(arquivo, hoje=lambda: hoje[0]).resumo()["contagens"] == {}   # arquivo de ontem
+    d.contar("carinhos")                                  # o mesmo objeto vira o dia sozinho
+    assert d.resumo() == {"data": "2026-11-05", "emocoes": {}, "contagens": {"carinhos": 1}}
+
+
+def test_formatar_data():
+    assert hermes.formatar_data("2026-11-04") == "04/11/2026"
+    assert hermes.formatar_data("ontem") == "ontem"
+
+
+class PonteDiario(PonteFalsa):
+    def __init__(self, paginas):
+        super().__init__()
+        self.paginas = paginas
+        handler = self.servidor.RequestHandlerClass
+        get_original, post_original = handler.do_GET, handler.do_POST
+        fake = self
+
+        def do_get(h):
+            if h.path.startswith("/api/diario"):
+                return h._json(200, {"paginas": fake.paginas})
+            return get_original(h)
+
+        def do_post(h):
+            if h.path == "/api/dia":
+                fake.corpos.append(json.loads(h.rfile.read(int(h.headers["Content-Length"]))))
+                return h._json(200, {"ok": True})
+            return post_original(h)
+
+        handler.do_GET, handler.do_POST = do_get, do_post
+
+
+def test_cliente_envia_o_dia_e_le_o_diario(tmp_path):
+    p = PonteDiario([{"data": "2026-11-04", "texto": "Hoje fugi do castigo."},
+                     {"data": "2026-11-03", "texto": "Dia calmo."}])
+    try:
+        c = cliente(p, tmp_path)
+        c.enviar_dia({"data": "2026-11-04", "emocoes": {}, "contagens": {"cutucadas": 2}}, esperar=True)
+        assert p.corpos == [{"data": "2026-11-04", "emocoes": {}, "contagens": {"cutucadas": 2}}]
+        c.ler_diario()
+        assert esperar(c) == [("diario", "04/11/2026\nHoje fugi do castigo.\n\n03/11/2026\nDia calmo.")]
+        p.paginas = []
+        c.ler_diario()
+        assert esperar(c)[0][0] == "falar"
+    finally:
+        p.fechar()
+
+
+def test_app_alimenta_o_diario_e_mostra_as_paginas(tmp_path, monkeypatch):
+    p = PonteDiario([])
+    app = _app(tmp_path, com_hermes=True, url=p.url)
+    try:
+        assert app.diario is not None
+        enviados = []
+        monkeypatch.setattr(app.hermes, "enviar_dia", lambda resumo, esperar=False: enviados.append(resumo))
+        app.on_poke()
+        app.pedido_do_hermes("voar")                     # ação desconhecida: o instinto ignora (recusa)
+        app.anotar_diario(forcar_envio=True)
+        assert enviados and enviados[-1]["contagens"]["cutucadas"] == 1
+        assert enviados[-1]["contagens"]["recusou"] == 1
+        assert app.paths.diario_hoje.exists()
+        app.hermes._chegou.put(("diario", "04/11/2026\nHoje fugi do castigo."))
+        app.receber_hermes()
+        assert app._caixa_diario.text() == "04/11/2026\nHoje fugi do castigo."
+        app._caixa_diario.close()
+    finally:
+        _fechar(app)
+        p.fechar()
+
+
+def test_sem_hermes_sem_diario(tmp_path):
+    app = _app(tmp_path, com_hermes=False)
+    try:
+        assert app.diario is None
+        app.on_poke()                                    # não quebra sem diário
+        app.contar_no_diario("cutucadas")
+    finally:
+        _fechar(app)

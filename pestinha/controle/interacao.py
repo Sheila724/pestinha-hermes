@@ -9,7 +9,8 @@ Mixin de PestinhaApp: usa os atributos criados em PestinhaApp.__init__.
 
 from ..log import log
 import time
-from PySide6.QtWidgets import QInputDialog, QMenu
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QInputDialog, QMenu, QMessageBox
 from ..body.pet import cursor_pos
 from ..ajustes import (
     INSATISFACAO_NOTEBOOK,
@@ -35,6 +36,7 @@ class InteracaoMixin:
             return
         self.sad.grievance = max(0.0, self.sad.grievance - 0.25)     # cutucar alegra um pouco
         self.last_poke = now
+        self.contar_no_diario("cutucadas")
         self.conditioning.outcome(now)
         self.senses.poke()
         self.timeline.note_interaction()
@@ -115,6 +117,7 @@ class InteracaoMixin:
         if self._congelado():
             return                                   # o objeto some, mas não vira aprendizado na pausa
         self.mischief_ctl.on_dismissed(thing, elapsed, self.prof, time.monotonic())
+        self.contar_no_diario("dispensadas")
 
     def arrancar_notebook(self, now):
         """Arrancaram o notebook dele: ele levanta e fica bravo ou triste, conforme o pet."""
@@ -150,6 +153,7 @@ class InteracaoMixin:
         if getattr(self, "hermes", None):
             item("Perguntar ao Hermes...", self.menu_perguntar_hermes, not self._congelado())
             item("Minha cidade e horários...", self.menu_cidade_hermes)
+            item("Ler meu diário...", self.hermes.ler_diario)
         menu.addSeparator()
         item("Cantinho do castigo", lambda: self.castigo.toggle(self.bounds()))
         item("Painel de protesto", lambda: self.floats.toggle("greve"))
@@ -166,6 +170,7 @@ class InteracaoMixin:
         texto = texto.strip() if ok else ""
         if texto:
             self.hermes.perguntar(texto, self.estado_para_hermes())
+            self.contar_no_diario("perguntas")
             self.mostrar_fala("Hmm… deixa eu pensar!")
 
     def menu_cidade_hermes(self):
@@ -183,6 +188,18 @@ class InteracaoMixin:
                                          text=atual.get("saida", "18:00"))
         if ok:
             self.hermes.configurar_perfil(cidade, entrada, saida)
+
+    def mostrar_diario(self, texto):
+        """As últimas páginas do diário (que o Hermes escreveu à noite), numa janelinha."""
+        caixa = QMessageBox()
+        caixa.setWindowTitle(f"Diário do {self.nome}")
+        caixa.setText(texto)
+        caixa.setIcon(QMessageBox.Icon.NoIcon)
+        caixa.setStandardButtons(QMessageBox.StandardButton.Close)
+        caixa.setModal(False)
+        caixa.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        caixa.show()
+        self._caixa_diario = caixa              # sem referência, o Python apaga a janela na hora
 
     def menu_poke(self):
         """Menu: 'Cutucar' (ignora o intervalo mínimo entre cutucadas)."""
