@@ -28,6 +28,7 @@ from ..ajustes import (
     DESLOCAMENTO_CARINHO as RUB_MIN_TRAVEL,
 )
 
+from . import figurino as figurino_mod
 from .desenho_rosto import BODY_H, BODY_W, PADRAO, draw_face, draw_zzz, lerp_shape
 
 CX, CY = WIN / 2, WIN / 2 - 6   # centro do corpo dentro da janela
@@ -75,6 +76,7 @@ class PetWindow(QWidget):
         self.body = Body(x, y, BODY_W / 2, BODY_H / 2)
         self.state = state
         self.aparencia = PADRAO      # cores e acessórios do pet (pets/<pet>.json)
+        self.figurino = figurino_mod.Figurino()   # o que ele veste ou segura agora (óculos, cachecol, caderninho...)
         self.next_blink = time.monotonic() + random.uniform(2.0, 5.0)
 
         self._press = None          # (pos global, tempo)
@@ -151,11 +153,16 @@ class PetWindow(QWidget):
         if st.emotion == "dormindo":
             jitter_y += 1.5 * math.sin(time.monotonic() * 1.6)     # respirando devagar
 
+        agora = time.monotonic()
+        fig = self.figurino
         p.save()
         p.translate(CX + jitter_x, CY + jitter_y)
-        p.rotate(self.body.angle + sway)
-        blink = 0.08 if time.monotonic() < st.blink_until else 1.0
-        draw_face(p, st.shape, st.gaze, blink, st.emotion, carinho=st.feliz_fechado(), aparencia=self.aparencia)
+        p.rotate(self.body.angle + sway + fig.inclinacao(agora))
+        blink = 0.08 if agora < st.blink_until else 1.0
+        draw_face(p, st.shape, fig.olhar(agora, st.gaze), blink, st.emotion, carinho=st.feliz_fechado(),
+                  aparencia=self.aparencia, piscar=fig.piscadinha(agora))
+        figurino_mod.desenhar(p, fig, agora)
+        fig.limpar(agora)
         p.restore()
 
         if st.emotion == "dormindo":

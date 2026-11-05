@@ -8,6 +8,8 @@ aprende com uma rede neural própria. Este projeto liga o pet a um **agente de I
 [Hermes Agent](https://hermes-agent.nousresearch.com/), rodando numa VPS. O pet passa a receber falas do
 agente como post-its e dá para conversar com ele pelo menu, de dentro de uma rede corporativa e sem VPN.
 
+![As animações do Pestinha: pensando, clima, festa, caderninho do diário, obedecer e recusar](docs/imagens/animacoes.gif)
+
 <!--
 Demonstração: grave um GIF curto (ScreenToGif, por exemplo) do post-it aparecendo, salve em
 docs/imagens/hermes_demo.gif e tire esta linha de dentro do comentário:

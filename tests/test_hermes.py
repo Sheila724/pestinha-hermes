@@ -6,6 +6,7 @@ import json
 import os
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -254,6 +255,16 @@ def _app(tmp_path, com_hermes, url=""):
     return PestinhaApp(store, paths)
 
 
+def deixar_rolar(app, segundos=10.0):
+    """Roda a agenda (o "!" antes da fala, o "puf" antes da resposta) e termina os voos dos post-its."""
+    import time as _t
+    futuro = _t.monotonic() + segundos
+    app.rodar_agenda(futuro)
+    for coisa in app.mischief.things:
+        coisa.animar(futuro)
+        coisa.animar(futuro + 5)
+
+
 def _fechar(app):
     if app.hermes:
         app.hermes.parar()
@@ -275,6 +286,8 @@ def test_app_mostra_fala_como_post_it(ponte, tmp_path):
         assert app.hermes is not None
         app.hermes._chegou.put(("falar", "Hora do café!"))
         app.receber_hermes()
+        assert app.palco.ativo("exclamacao", time.monotonic()) and not app.mischief.things   # primeiro o "!"
+        deixar_rolar(app)
         textos = [getattr(t, "text", None) for t in app.mischief.things]
         assert "Hora do café!" in textos
         left, top, right, bottom = app.bounds()
@@ -294,6 +307,7 @@ def test_app_pausado_guarda_a_fala_para_depois(ponte, tmp_path):
         assert not app.mischief.things
         app.paused = False
         app.receber_hermes()
+        deixar_rolar(app)
         assert [t.text for t in app.mischief.things] == ["depois"]
     finally:
         _fechar(app)
@@ -407,6 +421,8 @@ def test_app_obedece_de_bom_humor(ponte, tmp_path, monkeypatch):
         monkeypatch.setattr(obediencia, "decidir", lambda *a, **k: (True, None))
         app.hermes._chegou.put(("acao", "dormir"))
         app.receber_hermes()
+        assert app.palco.ativo("estrela", time.monotonic()) and chamado == []      # estrela antes de obedecer
+        deixar_rolar(app)
         assert chamado == ["dormir"] and not app.mischief.things
     finally:
         _fechar(app)
@@ -420,6 +436,8 @@ def test_app_recusa_com_post_it(ponte, tmp_path, monkeypatch):
         monkeypatch.setattr(obediencia, "decidir", lambda *a, **k: (False, "Não quero!"))
         app.hermes._chegou.put(("acao", "trabalhar"))
         app.receber_hermes()
+        assert app.palco.ativo("bufo", time.monotonic())
+        deixar_rolar(app)
         assert chamado == [] and [t.text for t in app.mischief.things] == ["Não quero!"]
     finally:
         _fechar(app)
@@ -472,9 +490,9 @@ class PontePerfil(PonteFalsa):
 
 
 @pytest.mark.parametrize("status, esperado", [
-    (200, ("resposta", "Agora eu olho o céu de Franca, São Paulo! Aviso entre 08:00 e 18:00.")),
-    (404, ("erro", "Não achei essa cidade. Tenta 'Cidade, UF' ou 'Cidade, País'.")),
-    (422, ("erro", "Horário estranho… use HH:MM, a entrada antes da saída.")),
+    (200, ("info", "Agora eu olho o céu de Franca, São Paulo! Aviso entre 08:00 e 18:00.")),
+    (404, ("info", "Não achei essa cidade. Tenta 'Cidade, UF' ou 'Cidade, País'.")),
+    (422, ("info", "Horário estranho… use HH:MM, a entrada antes da saída.")),
 ])
 def test_configurar_cidade(tmp_path, status, esperado):
     p = PontePerfil(status)
@@ -583,7 +601,7 @@ def test_cliente_envia_o_dia_e_le_o_diario(tmp_path):
         assert esperar(c) == [("diario", "04/11/2026\nHoje fugi do castigo.\n\n03/11/2026\nDia calmo.")]
         p.paginas = []
         c.ler_diario()
-        assert esperar(c)[0][0] == "falar"
+        assert esperar(c)[0][0] == "info"
     finally:
         p.fechar()
 
@@ -642,7 +660,7 @@ def test_balao_envia_com_enter_e_fecha(tmp_path):
         assert recebidos == [("e amanhã?", "Leva o guarda-chuva hoje, viu? Vai chover muito à tarde em Franca e eu não quero ver você molhada!")]
         assert not b.isVisible()
         b.abrir(400, 300, (0, 0, 800, 600))
-        assert not b.citacao.isVisible() and b.campo.text() == ""
+        assert b.citacao.text() == "" and b.campo.text() == ""
         QTest.keyClick(b.campo, Qt.Key_Return)                    # vazio: não envia nada
         assert len(recebidos) == 1
         b.abrir(400, 300, (0, 0, 800, 600))
@@ -690,7 +708,7 @@ def test_enviar_do_balao_leva_estado_e_post_it(ponte, tmp_path, monkeypatch):
         app.balao.enviado.emit("e amanhã?", "Leva o guarda-chuva!")
         texto, estado, respondendo = chamadas[0]
         assert texto == "e amanhã?" and respondendo == "Leva o guarda-chuva!" and "emocao" in estado
-        assert [t.text for t in app.mischief.things] == ["Hmm… deixa eu pensar!"]
+        assert not app.mischief.things and app.palco.ativo("pensando", time.monotonic())   # nuvem, não post-it
         assert app.diario.resumo()["contagens"]["perguntas"] == 1
     finally:
         _fechar(app)

@@ -45,11 +45,40 @@ Três jeitos de abrir o balão de conversa, que aparece em cima do pet no estilo
   ("e amanhã?" depois de um aviso de chuva). Clicar numa fala do Hermes não conta como travessura
   dispensada: o pet não fica frustrado por isso.
 
-**Enter** envia, **Esc** fecha. O menu do botão direito também tem **Conversar**.
+**Enter** envia, **Esc** ou o **×** do balão fecham. Fechar só esconde o balão: a memória curta continua.
+O menu do botão direito também tem **Conversar**.
 
 A ponte guarda uma **memória curta** (as últimas 8 mensagens, esquecidas depois de 30 minutos sem
 conversa), inclusive as falas que o pet mandou sozinho, como os avisos de clima. Assim dá para conversar
 em vez de fazer perguntas soltas. **Começar conversa nova**, no menu, apaga essa memória.
+
+## Animações
+
+O pet reage com o corpo ao que acontece na conversa (`pestinha/controle/vivo.py`). As peças que ele veste
+são desenhadas no próprio pet (`pestinha/body/figurino.py`); o que flutua em volta dele fica num "palco",
+uma janela transparente que segue o pet e deixa o clique passar (`pestinha/world/palco.py`).
+
+| Quando | O que ele faz |
+| --- | --- |
+| Você digita no balão | Olha para o balão e inclina a cabeça |
+| Você manda a pergunta | Nuvem de pensamento estilo HQ (com lupa se demora); some num "puf" quando a resposta chega |
+| Chega fala da VPS | "!" em cima da cabeça, e o post-it sai voando de trás dele |
+| Chuva (aviso ou pergunta do tempo) | Nuvem de chuva e guarda-chuva |
+| Calor (máxima ≥ 30 °C) | Óculos escuros e sol |
+| Frio (mínima ≤ 12 °C) | Cachecol e neve |
+| Sexta ou véspera de feriado (aviso de saída) | Chapéu de festa e confete |
+| Anotou algo no diário | Tira o caderninho e rabisca (anotações seguidas viram um rabisco só, no máximo um a cada 25 s) |
+| Página nova do diário / lendo o diário | Rabisca antes do post-it / fica com o caderninho aberto enquanto você lê |
+| Obedece ao Hermes | Estrela e pulinho |
+| Recusa | Revira os olhos e bufa |
+| Você fecha a conversa | Piscadinha e coraçãozinho |
+
+A ponte manda as animações do tempo junto do aviso ou da resposta (`"efeitos": ["chuva", "festa"]`).
+Para ver na hora, na VPS: `.venv/bin/python -m ponte.lado_de_fora --agora`.
+
+**Post-its:** todos dá para **arrastar** para onde quiser e fechar no **×**. Clicar num post-it do Hermes
+responde a ele; clicar numa travessura não faz nada. Fechar uma travessura no × ensina o pet a dar um
+tempo antes da próxima, mas sem frustração: ele não fica bravo nem tremendo.
 
 ## Pesquisar na internet
 

@@ -124,7 +124,8 @@ def verificar(cfg, diario, perfil, eventos, agora_utc=None, forcar=False, pergun
     if not forcar and agora.time() < DIARIO_HORA:
         return None
     diario.guardar_pagina(data, escrever_pagina(cfg, data, resumo, perguntar))
-    eventos.adicionar("falar", {"texto": "Escrevi no meu diário! Botão direito → Ler meu diário."})
+    eventos.adicionar("falar", {"texto": "Escrevi no meu diário! Botão direito → Ler meu diário.",
+                                "efeitos": ["diario"]})
     return data
 
 

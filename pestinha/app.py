@@ -55,6 +55,7 @@ from .body.pet_state import PetState
 from .body.toy import ToyTracker, bounce_off, push_from_cursor
 from .controle.interacao import InteracaoMixin
 from .controle.sessao import SessaoMixin
+from .controle.vivo import VivoMixin
 from .core.conditioning import Conditioning
 from .core.emotion import PRIORITY, EmotionState
 from .core.episodic import EpisodicMemory
@@ -62,7 +63,6 @@ from .core.homeostasis import Drives
 from .core.nervous_system import LIFBrain
 from .core.protesto import Protesto
 from .log import log
-from .mind import obediencia
 from .mind.diario import DiarioDoDia
 from .mind.castigo_ctl import CastigoController
 from .mind.festa import FestaController
@@ -86,7 +86,7 @@ HERMES_MS = 1_000          # de quanto em quanto tempo o app recolhe o que o Her
 DIARIO_ENVIO_S = 600       # de quanto em quanto tempo o resumo do dia vai para a ponte
 
 
-class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
+class PestinhaApp(VivoMixin, SessaoMixin, InteracaoMixin, QObject):
     """Aplicativo do pet: junta a rede neural, os sentidos, o corpo, as travessuras e a interface. Um único objeto, criado em main.py."""
     def __init__(self, store, paths=None):
         """Monta tudo na ordem certa: primeiro a memória e o conteúdo do pet, depois a rede, os sentidos, o corpo, a bandeja e os relógios."""
@@ -163,6 +163,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.ball_stored = False    # você guardou a bolinha pelo menu
         self.mischief = MischiefEngine(self.conteudo)
         self.mischief.dismissed.connect(self.on_dismissed)
+        self.mischief.fechado.connect(self.on_fechado)
         self.behavior = Behavior(self.pet.body, self.pet_state, self.mischief)
 
         # ----- controladores -----
@@ -232,7 +233,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.hermes = hermes.ClienteHermes.de_arquivo(self.paths.hermes, self.paths.hermes_ultimo, avisar=log)
         self.diario = DiarioDoDia(self.paths.diario_hoje) if self.hermes else None
         self._diario_amostra = self._diario_envio = time.monotonic()
-        self.balao = self.atalho_conversa = None
+        self.balao = self.atalho_conversa = self.palco = None
+        self.agenda = []
         if self.hermes:
             self.balao = BalaoDeConversa(self.nome)
             self.balao.enviado.connect(self.enviar_ao_hermes)
@@ -240,6 +242,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             self.mischief.fala_clicada.connect(self.abrir_conversa)
             self.atalho_conversa = ConversaHotkey()
             self.atalho_conversa.pressed.connect(self.abrir_conversa)
+            self._iniciar_vivo()
             self.hermes.iniciar()
             self._timer(HERMES_MS, self.receber_hermes)
             log(f"[hermes] ligado: {self.hermes.url}")
@@ -264,36 +267,6 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
                 QSystemTrayIcon.Information, 3000,
             )
 
-    def receber_hermes(self):
-        """Mostra o que chegou do Hermes. Pausado ou escondido, deixa esperando na fila até voltar."""
-        if self._congelado() or self.hidden:
-            return
-        self.anotar_diario()
-        for tipo, texto in self.hermes.coletar():
-            if tipo in ("falar", "resposta", "erro"):
-                self.mostrar_fala(texto)
-            elif tipo == "acao":
-                self.pedido_do_hermes(texto)
-            elif tipo == "diario":
-                self.mostrar_diario(texto)
-            elif tipo == "humor":
-                log(f"[hermes] humor recebido (ainda sem efeito): {texto}")
-
-    def abrir_conversa(self, respondendo=""):
-        """Abre o balão de conversa em cima do pet (clique duplo, Ctrl+Alt+P, ou clique num post-it dele)."""
-        if not self.balao or self._congelado():
-            return
-        if self.hidden:
-            self.toggle_hidden()                 # chamou pelo atalho com ele escondido: ele volta para conversar
-        body = self.pet.body
-        self.balao.abrir(body.x, body.y - 70, self.bounds(), respondendo)
-
-    def enviar_ao_hermes(self, texto, respondendo=""):
-        """O que você escreveu no balão vai para o Hermes, com o humor do pet e o post-it que você respondeu."""
-        self.hermes.perguntar(texto, self.estado_para_hermes(), respondendo)
-        self.contar_no_diario("perguntas")
-        self.mostrar_fala("Hmm… deixa eu pensar!")
-
     def anotar_diario(self, forcar_envio=False):
         """Amostra o estado para o diário do dia e, de tempos em tempos, manda o resumo para a ponte."""
         if not self.diario:
@@ -316,29 +289,6 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         """Como o pet está agora, para o Hermes falar no tom certo (só emoção e energia, nada da sua tela)."""
         return {"emocao": self.emotion.current, "energia": round(self.drives.energy, 2),
                 "dormindo": bool(self.asleep)}
-
-    def pedido_do_hermes(self, acao):
-        """O Hermes pediu algo ao corpo: o instinto decide se obedece; se não, diz por quê num post-it."""
-        perms = self.perms
-        if (acao == "bolinha" and not perms["bolinha"]) or (acao == "travessura" and not perms["travessuras"]):
-            self.mostrar_fala("Isso está desligado nas Configurações.")
-            return
-        obedece, fala = obediencia.decidir(acao, self.emotion.current, self.drives.energy, self.asleep)
-        log(f"[hermes] pedido '{acao}' com emoção {self.emotion.current}: {'obedeceu' if obedece else 'recusou'}")
-        self.contar_no_diario("obedeceu" if obedece else "recusou")
-        if not obedece:
-            if fala:
-                self.mostrar_fala(fala)
-            return
-        executar = {"dormir": self.menu_sleep, "bolinha": self.menu_place_ball,
-                    "travessura": self.menu_mischief, "trabalhar": self.menu_pedir_trabalho}.get(acao)
-        if executar:
-            executar()
-
-    def mostrar_fala(self, texto):
-        """Post-it com a fala logo acima do pet."""
-        body = self.pet.body
-        self.mischief.mostrar_fala(texto, body.x, body.y - 150, self.bounds())
 
     def _timer(self, ms, slot):
         """Cria um relógio que chama `slot` a cada `ms` milissegundos."""
@@ -583,6 +533,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         now = time.monotonic()
         dt = min(0.05, max(0.0, now - self.last_frame))
         self.last_frame = now
+        self.tick_vivo(now)
         if not self.pet.isVisible() or self.paused or self.wiping:
             return
 

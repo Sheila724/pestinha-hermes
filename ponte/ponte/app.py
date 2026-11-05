@@ -17,6 +17,7 @@ A ponte escuta só em 127.0.0.1; quem a expõe na internet (com HTTPS) é o Cadd
 """
 import hmac
 import logging
+import re
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field
@@ -30,6 +31,8 @@ from .mundo import Mundo
 from .perfil import PADRAO, Perfil, hora_valida
 
 log = logging.getLogger("ponte")
+SOBRE_O_TEMPO = re.compile(r"chuv|chov|tempo|clima|calor|frio|sol\b|guarda.chuva|temperatura|graus|nublad|garoa",
+                           re.IGNORECASE)
 LOCAIS = {"127.0.0.1", "::1", "testclient"}
 
 
@@ -115,6 +118,10 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.p
         resposta = {"resposta": texto or "…"}
         if acao:
             resposta["acao"] = acao
+        if SOBRE_O_TEMPO.search(p.texto):                  # perguntou do tempo: ele "veste" o tempo de hoje
+            efeitos = mundo.efeitos()
+            if efeitos:
+                resposta["efeitos"] = efeitos
         return resposta
 
     @app.post("/api/conversa/esquecer", dependencies=[Depends(autorizado)])

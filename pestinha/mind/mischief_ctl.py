@@ -151,6 +151,15 @@ class MischiefController:
             self.emotion.force("dramatico", 4.0, now, PRIORITY["dramatico"])
             self.dismiss_times.clear()
 
+    def on_fechado(self, thing, elapsed, prof, now):
+        """
+        Você fechou a travessura pelo ×. Ele aprende do mesmo jeito (fechar rápido = não gostou, e a memória
+        guarda isso), mas sem o pulso de frustração: não fica bravo, não treme, não faz drama.
+        """
+        self.drives.touched("dismiss")
+        self.memory.on_dismiss(thing, elapsed, prof["dismiss_patience"])
+        self.penalty_until = now + PENALTY_SECONDS
+
     def clear(self):
         """Tira todas as travessuras da tela e solta o que ele estava carregando."""
         self.behavior.drop_carried()
