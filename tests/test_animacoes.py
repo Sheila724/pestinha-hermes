@@ -131,6 +131,14 @@ def test_palco_inicia_encerra_e_some():
     p.close()
 
 
+def test_encerrado_no_mesmo_instante_ja_nao_esta_ativo():
+    p = Palco()                                                         # Windows: o relógio anda de 15 em 15 ms
+    p.iniciar("pensando", 10.0)
+    p.encerrar("pensando", 12.0)
+    assert not p.ativo("pensando", 12.0) and p.efeitos
+    p.close()
+
+
 def test_palco_esconde_com_o_pet_e_nao_duplica():
     p = Palco()
     p.iniciar("guarda_chuva", 0.0)
