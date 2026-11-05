@@ -4,7 +4,7 @@ Ponte entre o Pestinha (no computador) e o Hermes Agent (na VPS).
 Rotas:
   GET  /saude              sem token; para monitoramento
   GET  /api/eventos        o pet pergunta "tem algo novo depois do id N?" (polling)
-  POST /api/perguntar      você clica no pet, digita, e o Hermes responde
+  POST /api/perguntar      você clica no pet, digita, e o Hermes responde (e marca lembretes, se pedir)
   POST /api/conversa/esquecer  começa uma conversa nova (a memória curta some)
   GET  /api/perfil         cidade e horários escolhidos (para os avisos do lado de fora)
   POST /api/perfil         escolhe a cidade ("Franca, SP", "Lisboa") e os horários de entrada e saída
@@ -12,28 +12,36 @@ Rotas:
   GET  /api/diario         as últimas páginas do diário que o pet escreveu
   POST /interno/eventos    só da própria VPS (cron do Hermes, scripts): põe uma fala, humor ou ação na fila
 
+Os lembretes vencidos viram falas na hora em que o pet consulta a fila (ponte/lembretes.py).
+
 Tudo em /api e /interno exige "Authorization: Bearer <PONTE_TOKEN>".
 A ponte escuta só em 127.0.0.1; quem a expõe na internet (com HTTPS) é o Caddy.
 """
+import datetime as dt
 import hmac
 import logging
 import re
+import time
+from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from . import config as config_mod
 from . import acoes, clima, hermes
+from . import lembretes as lemb
 from .conversa import Conversa
 from .diario import Diario, limpar_resumo
 from .eventos import Eventos
-from .mundo import Mundo
+from .mundo import FUSO_PADRAO, Mundo
 from .perfil import PADRAO, Perfil, hora_valida
 
 log = logging.getLogger("ponte")
 SOBRE_O_TEMPO = re.compile(r"chuv|chov|tempo|clima|calor|frio|sol\b|guarda.chuva|temperatura|graus|nublad|garoa",
                            re.IGNORECASE)
 LOCAIS = {"127.0.0.1", "::1", "testclient"}
+NAO_ENTENDI_LEMBRETE = ("Não entendi para quando é o lembrete. Fala tipo “me lembra às 16h de ligar” "
+                        "ou “daqui a 30 min”.")
 
 
 class EstadoPet(BaseModel):
@@ -67,13 +75,46 @@ class NovoEvento(BaseModel):
     acao: str = Field(default="", max_length=20)
 
 
-def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.previsao):
+def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.previsao, relogio=time.time):
     cfg = cfg or config_mod.carregar()
     eventos = Eventos(cfg.banco)
     perfil = Perfil(cfg.banco)
     diario = Diario(cfg.banco)
     conversa = Conversa(cfg.banco)
     mundo = Mundo(perfil, buscar_previsao)
+    lembretes = lemb.Lembretes(cfg.banco, relogio)
+
+    def fuso():
+        return (perfil.ler() or {}).get("fuso") or FUSO_PADRAO
+
+    def disparar_lembretes():
+        """Os lembretes que venceram viram falas na fila (com o efeito que acorda o pet e toca o despertador)."""
+        vencidos = lembretes.vencidos()
+        for r in vencidos:
+            fala = lemb.fala_do_lembrete(r, fuso(), relogio())
+            eventos.adicionar("falar", {"texto": fala, "efeitos": ["lembrete"]})
+            conversa.anotar("assistant", fala)                  # dá para responder: "adia 10 min"
+
+    def marcar_lembretes(pedidos, cancelar):
+        """Cria e cancela o que o Hermes pediu. Devolve (frase de confirmação, se mexeu em algum)."""
+        agora = dt.datetime.fromtimestamp(relogio(), ZoneInfo(fuso()))
+        marcados, frases, mexeu = [], [], False
+        for quando, oque in pedidos[:3]:
+            alvo = lemb.interpretar(quando, agora)
+            if alvo is None:
+                continue
+            mexeu = True
+            if lembretes.criar(alvo, oque) is None:
+                frases.append("Mas já tenho lembrete demais anotado!")
+                break
+            marcados.append(lemb.descrever_horario(alvo, agora))
+        if marcados:
+            frases.insert(0, f"Anotado para {' e '.join(marcados)}.")
+        for id_ in cancelar[:5]:
+            mexeu = True
+            if not lembretes.cancelar(id_):
+                frases.append("Esse lembrete eu não achei.")
+        return " ".join(frases), mexeu
     app = FastAPI(title="Ponte do Pestinha", docs_url=None, redoc_url=None, openapi_url=None)
 
     def autorizado(request: Request):
@@ -93,13 +134,15 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.p
 
     @app.get("/api/eventos", dependencies=[Depends(autorizado)])
     def listar(desde: int = Query(default=0, ge=0)):
+        disparar_lembretes()
         lista, ultimo = eventos.depois_de(desde)
         return {"eventos": lista, "ultimo": ultimo}
 
     @app.post("/api/perguntar", dependencies=[Depends(autorizado)])
     def perguntar(p: Pergunta):
         historico = conversa.recente()
-        linhas = [mundo.contexto(), acoes.descrever_estado(p.estado.model_dump() if p.estado else None)]
+        linhas = [mundo.contexto(), lembretes.contexto(fuso()),
+                  acoes.descrever_estado(p.estado.model_dump() if p.estado else None)]
         respondendo = p.respondendo.strip()
         lembra = any(m["role"] == "assistant" and m["content"] == respondendo for m in historico)
         if respondendo and not lembra:              # o post-it é antigo ou a memória curta já esqueceu
@@ -110,7 +153,13 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.p
         except hermes.HermesErro as erro:
             log.warning("Hermes falhou: %s", erro)
             raise HTTPException(status_code=502, detail="o Hermes não respondeu agora")
-        texto, acao = acoes.separar_acao(bruta)
+        sem_lembretes, pedidos, cancelar = lemb.separar(bruta)
+        texto, acao = acoes.separar_acao(sem_lembretes)
+        confirmacao, mexeu = marcar_lembretes(pedidos, cancelar)
+        if confirmacao:
+            texto = f"{texto} {confirmacao}".strip()
+        elif not mexeu and lemb.pediu_lembrete(p.texto) and not texto.rstrip().endswith("?"):
+            texto = NAO_ENTENDI_LEMBRETE                    # nunca promete lembrar sem ter marcado
         if respondendo and not lembra:
             conversa.anotar("assistant", respondendo)
         conversa.anotar("user", p.texto)

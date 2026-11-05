@@ -67,6 +67,10 @@ cliente dobra a espera entre tentativas até 60 segundos e o pet segue normal.
 **Custo sob controle.** Uma chamada ao agente custa milhares de tokens (instruções e ferramentas internas).
 Por isso o polling nunca chama o Hermes: ele só é acionado quando você pergunta algo ou um agendamento manda.
 
+**O modelo entende, o código calcula.** Nos lembretes, o agente só traduz o pedido ("daqui a 30 min") numa
+marca `[lembrete: +30 | ...]`; a hora exata, o armazenamento e o disparo são da ponte. O modelo erra conta
+de horário e às vezes promete o que não fez: se disser "te lembro" sem marcar, a ponte troca a resposta.
+
 **Segurança da VPS.** Login só por chave SSH, root e senha desligados, firewall liberando apenas 22, 80 e 443,
 deploy key do GitHub só de leitura, segredos em arquivos `chmod 600` fora do repositório, comparação do token
 em tempo constante e a rota `/interno` bloqueada no Caddy e na própria aplicação.
@@ -106,7 +110,6 @@ O CI roda os dois conjuntos separadamente, cada um só quando a sua parte muda.
 
 ## Próximos passos
 
-- Lembretes em linguagem natural ("me lembra às 16h de…"), agendados pelo próprio agente.
 - Diário de projetos: o pet anota o que você construiu na semana e o agente rascunha um post.
 - O pet contando ao agente o tipo de atividade em uso (só a categoria, nunca o conteúdo) para comentários com contexto.
 - Eventos de humor mudando a emoção do pet.

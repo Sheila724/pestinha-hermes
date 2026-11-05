@@ -52,6 +52,20 @@ A ponte guarda uma **memória curta** (as últimas 8 mensagens, esquecidas depoi
 conversa), inclusive as falas que o pet mandou sozinho, como os avisos de clima. Assim dá para conversar
 em vez de fazer perguntas soltas. **Começar conversa nova**, no menu, apaga essa memória.
 
+## Lembretes
+
+No balão: **"me lembra daqui a 30 min de ligar para o cliente"**, **"me avisa às 16h da reunião"**,
+**"amanhã às 9h"**. Ele confirma com o horário certo ("Anotado para 11:06.") e, na hora, toca o
+despertador e mostra o post-it. Também dá para perguntar **"quais lembretes eu tenho?"**, pedir para
+**cancelar** um e, quando ele lembrar, responder **"adia 10 min"**.
+
+- O Hermes só entende o pedido e escreve `[lembrete: +30 | ligar para o cliente]`; quem calcula o horário,
+  guarda (no SQLite da ponte) e dispara é a ponte (`ponte/ponte/lembretes.py`). O agente não ganhou
+  ferramenta nova.
+- Com o pet fechado, o lembrete espera e aparece quando ele abrir, dizendo a hora combinada.
+- Se o modelo disser que vai lembrar sem marcar, a ponte troca a resposta por um "não entendi para quando".
+- Fuso: o da cidade escolhida no menu (sem cidade, horário de Brasília). Até 30 lembretes marcados.
+
 ## Animações
 
 O pet reage com o corpo ao que acontece na conversa (`pestinha/controle/vivo.py`). As peças que ele veste
@@ -69,6 +83,7 @@ uma janela transparente que segue o pet e deixa o clique passar (`pestinha/world
 | Sexta ou véspera de feriado (aviso de saída) | Chapéu de festa e confete |
 | Anotou algo no diário | Tira o caderninho e rabisca (anotações seguidas viram um rabisco só, no máximo um a cada 25 s) |
 | Página nova do diário / lendo o diário | Rabisca antes do post-it / fica com o caderninho aberto enquanto você lê |
+| Hora de um lembrete | Acorda (no susto, se dormia), pula e toca o despertador; depois o post-it |
 | Obedece ao Hermes | Estrela e pulinho |
 | Recusa | Revira os olhos e bufa |
 | Você fecha a conversa | Piscadinha e coraçãozinho |

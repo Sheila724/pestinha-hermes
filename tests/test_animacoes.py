@@ -522,3 +522,25 @@ def test_cartaz_de_protesto_nao_tem_x():
     QTest.mouseClick(c, Qt.LeftButton, Qt.NoModifier, canto)
     assert cliques == [c] and fechados == [] and "×" not in c.toolTip()
     c.close()
+
+
+def test_lembrete_acorda_toca_e_mostra_sem_exclamacao(tmp_path):
+    from pestinha.controle import vivo
+    app = _app(tmp_path)
+    try:
+        app.sleep.fall_asleep()
+        body = app.pet.body
+        body.grounded, body.held = True, False
+        app.hermes._chegou.put(("efeito", "lembrete"))
+        app.hermes._chegou.put(("falar", "Ei, psiu! Hora de: ligar"))
+        app.hermes._chegou.put(("falar", "Outra fala"))
+        app.receber_hermes()
+        agora = time.monotonic()
+        assert not app.asleep and app.emotion.override == "assustado"
+        assert app.palco.ativo("despertador", agora) and body.vy < 0
+        app.rodar_agenda(agora + vivo.ATRASO_FALA_S + 0.05)
+        assert [t.text for t in app.mischief.things] == ["Outra fala"]       # só a fala seguinte já saiu
+        app.rodar_agenda(agora + vivo.ATRASO_LEMBRETE_S + 0.1)
+        assert sorted(t.text for t in app.mischief.things) == ["Ei, psiu! Hora de: ligar", "Outra fala"]
+    finally:
+        _fechar(app)
