@@ -39,6 +39,19 @@ class Mundo:
             self._cache = (chave, self._relogio(), prev)
         return prev
 
+    def efeitos(self, agora_utc=None):
+        """Animações do tempo de agora na cidade escolhida (para quando você pergunta do tempo)."""
+        lugar = self._perfil.ler() or {}
+        if not lugar.get("nome"):
+            return []
+        agora = (agora_utc or dt.datetime.now(dt.timezone.utc)).astimezone(ZoneInfo(lugar.get("fuso", FUSO_PADRAO)))
+        prev = self._previsao(lugar)
+        if not prev:
+            return []
+        dias = {d["data"]: d for d in prev.get("dias", [])}
+        chance = clima.chuva_entre(prev, agora, agora + dt.timedelta(hours=6))
+        return clima.efeitos_do_dia(dias.get(agora.date().isoformat()), max(chance, 0))
+
     def contexto(self, agora_utc=None):
         """Uma linha "[Lado de fora agora: ...]" para o Hermes responder sobre tempo, data e feriados."""
         lugar = self._perfil.ler() or {}

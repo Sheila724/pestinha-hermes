@@ -201,6 +201,8 @@ class SessaoMixin:
                 self.hermes.parar()
                 if self.balao:
                     self.balao.close()
+                if self.palco:
+                    self.palco.close()
             self.mesa.fechar()
             self.festa.fechar()
             self.revolucao.fechar()

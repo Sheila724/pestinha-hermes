@@ -26,6 +26,7 @@ class DiarioDoDia:
         self._arquivo = Path(arquivo)
         self._hoje = hoje
         self._anterior = {}
+        self.anotacoes = 0                      # quantas vezes anotou algo desde que o pet abriu
         self._carregar()
 
     # ---------- o que o app usa ----------
@@ -54,6 +55,7 @@ class DiarioDoDia:
         if nome in CONTAGENS and n > 0:
             self._virar_o_dia()
             self.contagens[nome] = self.contagens.get(nome, 0) + n
+            self.anotacoes += 1                 # o app vê isso subir e o pet rabisca no caderninho
 
     def resumo(self):
         """O que vai para a ponte: {"data", "emocoes": {nome: minutos}, "contagens": {nome: n}}."""

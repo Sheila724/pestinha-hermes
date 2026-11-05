@@ -89,7 +89,13 @@ class ClienteHermes:
         self._parar.set()
 
     def coletar(self):
-        """Tudo o que chegou desde a última chamada: ("falar"|"humor"|"acao"|"resposta"|"erro"|"diario", texto)."""
+        """
+        Tudo o que chegou desde a última chamada, em ordem, como (tipo, texto):
+          falar     fala que a VPS mandou sozinha (aviso, diário)     resposta / erro   da sua pergunta
+          efeito    animação para a fala seguinte                       acao              pedido ao corpo
+          info      confirmação local (cidade salva, conversa nova)     diario            páginas do diário
+          humor     (ainda sem efeito)
+        """
         itens = []
         while True:
             try:
@@ -132,9 +138,9 @@ class ClienteHermes:
     def _esquecer(self):
         try:
             self._pedido("/api/conversa/esquecer", {})
-            self._chegou.put(("falar", "Pronto, página virada! Sobre o que a gente conversa agora?"))
+            self._chegou.put(("info", "Pronto, página virada! Sobre o que a gente conversa agora?"))
         except (OSError, urllib.error.URLError, ValueError, KeyError, TypeError):
-            self._chegou.put(("erro", "Não consegui falar com a VPS."))
+            self._chegou.put(("info", "Não consegui falar com a VPS."))
 
     def ler_diario(self):
         """Busca as últimas páginas do diário; chegam em coletar() como ("diario", texto) ou ("erro", ...)."""
@@ -152,10 +158,10 @@ class ClienteHermes:
         try:
             paginas = self._pedido("/api/diario?quantas=5")["paginas"]
         except (OSError, urllib.error.URLError, ValueError, KeyError, TypeError):
-            self._chegou.put(("erro", "Não consegui buscar meu diário agora."))
+            self._chegou.put(("info", "Não consegui buscar meu diário agora."))
             return
         if not paginas:
-            self._chegou.put(("falar", "Meu diário ainda está em branco. Hoje à noite eu escrevo!"))
+            self._chegou.put(("info", "Meu diário ainda está em branco. Hoje à noite eu escrevo!"))
             return
         texto = "\n\n".join(f"{formatar_data(p['data'])}\n{p['texto']}" for p in paginas)
         self._chegou.put(("diario", texto))
@@ -164,14 +170,14 @@ class ClienteHermes:
         try:
             dados = self._pedido("/api/perfil", corpo)
             self.perfil = dados
-            self._chegou.put(("resposta", encurtar(
+            self._chegou.put(("info", encurtar(
                 f"Agora eu olho o céu de {dados['nome']}! Aviso entre {dados['entrada']} e {dados['saida']}.")))
         except urllib.error.HTTPError as erro:
-            self._chegou.put(("erro", {404: "Não achei essa cidade. Tenta 'Cidade, UF' ou 'Cidade, País'.",
+            self._chegou.put(("info", {404: "Não achei essa cidade. Tenta 'Cidade, UF' ou 'Cidade, País'.",
                                        422: "Horário estranho… use HH:MM, a entrada antes da saída."}
                               .get(erro.code, "A VPS não aceitou a cidade agora.")))
         except (OSError, urllib.error.URLError, ValueError, KeyError, TypeError):
-            self._chegou.put(("erro", "Não consegui falar com a VPS."))
+            self._chegou.put(("info", "Não consegui falar com a VPS."))
 
     def _pedido(self, caminho, corpo=None, timeout=TIMEOUT_EVENTOS):
         dados = None if corpo is None else json.dumps(corpo).encode("utf-8")
@@ -196,6 +202,7 @@ class ClienteHermes:
         if not primeira_vez:                # na primeira conexão não despeja o histórico antigo na tela
             for ev in eventos:
                 if ev.get("tipo") == "falar" and ev.get("texto"):
+                    self._efeitos(ev.get("efeitos"))
                     self._chegou.put(("falar", encurtar(ev["texto"])))
                 elif ev.get("tipo") == "humor" and ev.get("humor"):
                     self._chegou.put(("humor", str(ev["humor"])))
@@ -219,6 +226,7 @@ class ClienteHermes:
         try:
             dados = self._pedido("/api/perguntar", corpo, timeout=TIMEOUT_PERGUNTA)
             resposta = dados["resposta"]
+            self._efeitos(dados.get("efeitos"))
             self._chegou.put(("resposta", encurtar(resposta)))
             if dados.get("acao"):
                 self._chegou.put(("acao", str(dados["acao"])))
@@ -227,6 +235,13 @@ class ClienteHermes:
                               else "A VPS não me reconheceu (token?)."))
         except (OSError, urllib.error.URLError, ValueError, KeyError, TypeError):
             self._chegou.put(("erro", "Não consegui falar com a VPS."))
+
+    def _efeitos(self, nomes):
+        """Animações pedidas pela ponte (chuva, calor, frio, festa, diario), antes da fala que elas acompanham."""
+        if isinstance(nomes, list):
+            for nome in nomes[:4]:
+                if isinstance(nome, str) and nome:
+                    self._chegou.put(("efeito", nome[:20]))
 
     def _laco(self):
         espera = self._intervalo

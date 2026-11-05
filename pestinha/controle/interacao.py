@@ -119,6 +119,13 @@ class InteracaoMixin:
         self.mischief_ctl.on_dismissed(thing, elapsed, self.prof, time.monotonic())
         self.contar_no_diario("dispensadas")
 
+    def on_fechado(self, thing, elapsed):
+        """Você fechou uma travessura pelo ×: ele aprende que você não quis, sem ficar frustrado (nem tremer)."""
+        if self._congelado():
+            return
+        self.mischief_ctl.on_fechado(thing, elapsed, self.prof, time.monotonic())
+        self.contar_no_diario("dispensadas")
+
     def arrancar_notebook(self, now):
         """Arrancaram o notebook dele: ele levanta e fica bravo ou triste, conforme o pet."""
         self.mesa.levantar_arrancado(now)
@@ -194,6 +201,8 @@ class InteracaoMixin:
         caixa.setStandardButtons(QMessageBox.StandardButton.Close)
         caixa.setModal(False)
         caixa.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        self.pet.figurino.abrir_caderno(time.monotonic())            # segura o caderno aberto enquanto você lê
+        caixa.finished.connect(lambda _r: self.pet.figurino.tirar("caderno", time.monotonic()))
         caixa.show()
         self._caixa_diario = caixa              # sem referência, o Python apaga a janela na hora
 

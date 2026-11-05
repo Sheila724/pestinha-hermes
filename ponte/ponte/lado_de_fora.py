@@ -58,6 +58,21 @@ def fatos(momento, lugar, prev, agora):
     return lista
 
 
+def efeitos(momento, prev, agora, pais="BR"):
+    """Animações que acompanham o aviso: tempo do dia (manhã) ou da volta para casa (saída), e festa."""
+    hoje = agora.date()
+    dias = {d["data"]: d for d in (prev or {}).get("dias", [])}
+    dia = dias.get(hoje.isoformat())
+    if momento == "manha":
+        lista = clima.efeitos_do_dia(dia)
+    else:
+        chance = clima.chuva_entre(prev, agora, agora + dt.timedelta(hours=3)) if prev else 0
+        lista = ["chuva"] if chance >= clima.CHUVA_PROVAVEL else []
+    if momento == "saida" and calendario.fatos_do_dia(hoje, pais):       # sexta ou véspera de feriado
+        lista.append("festa")
+    return lista
+
+
 def frase_pronta(momento, lista):
     """Quando o Hermes não responde: uma frase direta com os fatos."""
     inicio = "Bom dia!" if momento == "manha" else "Quase hora de ir embora!"
@@ -109,7 +124,8 @@ def verificar(cfg, perfil, eventos, agora_utc=None, forcar=False,
     texto = escrever(cfg, momento, lugar, fatos(momento, lugar, prev, agora), perguntar)
     if conversa is not None:
         conversa.anotar("assistant", texto)          # para dar para responder ao aviso ("e amanhã?")
-    return eventos.adicionar("falar", {"texto": texto})
+    return eventos.adicionar("falar", {"texto": texto,
+                                       "efeitos": efeitos(momento, prev, agora, lugar.get("pais", "BR"))})
 
 
 def main(argv=None):

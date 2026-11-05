@@ -69,8 +69,12 @@ def lerp_shape(current, target, k):
     return {key: current[key] + (target[key] - current[key]) * k for key in target}
 
 
-def draw_face(p, shape, gaze=(0.0, 0.0), blink=1.0, emotion="observando", carinho=False, aparencia=PADRAO):
-    """Desenha moldura + tela + olhos (+ acessórios) com centro na origem do painter."""
+def draw_face(p, shape, gaze=(0.0, 0.0), blink=1.0, emotion="observando", carinho=False, aparencia=PADRAO,
+              piscar=None):
+    """
+    Desenha moldura + tela + olhos (+ acessórios) com centro na origem do painter.
+    `piscar` fecha só um olho (1 = o direito, -1 = o esquerdo): a piscadinha.
+    """
     a = aparencia
     p.setPen(QPen(a.moldura, 5))
     p.setBrush(a.casca)
@@ -91,16 +95,17 @@ def draw_face(p, shape, gaze=(0.0, 0.0), blink=1.0, emotion="observando", carinh
             p.drawArc(QRectF(cx - 15, cy - 8, 30, 22), 0, 180 * 16)
         p.setPen(Qt.NoPen)
     else:
-        _olhos(p, shape, gaze, blink, emotion, a)
+        _olhos(p, shape, gaze, blink, emotion, a, piscar)
     for nome, cor in a.acessorios:
         if nome == "oculos":
             _oculos(p, cor)
 
 
-def _olhos(p, shape, gaze, blink, emotion, a):
+def _olhos(p, shape, gaze, blink_ambos, emotion, a, piscar=None):
     """Desenha os dois olhos: forma, piscada, brilho e direção do olhar."""
     gx, gy = gaze
     for side in (-1, 1):
+        blink = 0.08 if side == piscar else blink_ambos
         w = shape["w"]
         h = shape["h"] * blink
         if emotion == "curioso" and side == 1:

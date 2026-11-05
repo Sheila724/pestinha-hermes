@@ -26,6 +26,7 @@ class MischiefEngine(QObject):
     """Guarda os objetos na tela e decide a próxima travessura."""
 
     dismissed = Signal(object, float)     # (objeto, segundos que ficou na tela)
+    fechado = Signal(object, float)       # fechado pelo ×: some sem frustração (ele aprende, mas não fica bravo)
     fala_clicada = Signal(str)            # clicaram num post-it do Hermes: o texto dele, para responder
 
     def __init__(self, conteudo):
@@ -104,7 +105,7 @@ class MischiefEngine(QObject):
         if not text:
             return None
         thing = NoteThing(text)
-        thing.clicked.connect(self._on_click)
+        self._ligar_travessura(thing)
         return ("deliver", thing)
 
     def _make(self, kind, emotion, small, activity=None):
@@ -131,7 +132,7 @@ class MischiefEngine(QObject):
             thing.deleteLater()                      # imagem ilegível: nada de objeto invisível na tela
             return None
         if thing is not None:
-            thing.clicked.connect(self._on_click)
+            self._ligar_travessura(thing)
         return thing
 
     # ---------------- colocação ----------------
@@ -158,14 +159,21 @@ class MischiefEngine(QObject):
         self._add(thing)
         return True
 
-    def mostrar_fala(self, texto, x, y, bounds):
-        """Post-it com uma fala (do Hermes) colado perto de (x, y), dentro da tela. Some ao clicar."""
+    def mostrar_fala(self, texto, x, y, bounds, origem=None):
+        """
+        Post-it com uma fala (do Hermes) perto de (x, y), dentro da tela. Se vier `origem` (o pet), ele sai
+        de lá voando até o lugar. Clicar responde; o × fecha; dá para arrastar.
+        """
         thing = NoteThing(texto, size=NOTE_SIZE_FALA if len(texto) > 60 else None)
+        thing.setToolTip("clique para responder · arraste para mover · × para fechar")
         thing.clicked.connect(self._on_fala_click)
+        thing.fechar.connect(self._remove)
         left, top, right, bottom = bounds
         hw, hh = thing.width() / 2, thing.height() / 2
         thing.place(min(max(x, left + hw), right - hw), min(max(y, top + hh), bottom - hh))
         thing.resting = True            # fica colado onde apareceu, como um post-it largado
+        if origem is not None:
+            thing.voar_de(*origem)
         self._add(thing)
         return thing
 
@@ -196,14 +204,26 @@ class MischiefEngine(QObject):
     # ---------------- ciclo ----------------
 
     def tick(self, dt, floor):
-        """Um passo de física: os objetos caem até o chão."""
+        """Um passo de física: os objetos caem até o chão (e os que estão voando ou pousando se animam)."""
+        agora = time.monotonic()
         for thing in self.things:
             thing.fall(dt, floor)
+            thing.animar(agora)
 
     def set_visible(self, visible):
         """Mostra ou esconde todos os objetos de uma vez."""
         for thing in self.things:
             thing.setVisible(visible)
+
+    def _ligar_travessura(self, thing):
+        """Travessura: dá para arrastar à vontade; só o × fecha (e fechar não deixa o pet frustrado)."""
+        thing.fechar.connect(self._on_fechar)
+
+    def _on_fechar(self, thing):
+        """Fechou pelo ×: ele some e o tempo até fechar vai para o aprendizado, sem virar frustração."""
+        elapsed = time.monotonic() - thing.born
+        self._remove(thing)
+        self.fechado.emit(thing, elapsed)
 
     def _on_click(self, thing):
         """Clicaram no objeto: ele some e o tempo até o clique é registrado."""

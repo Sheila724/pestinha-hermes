@@ -12,6 +12,8 @@ URL_BUSCA = "https://geocoding-api.open-meteo.com/v1/search"
 URL_PREVISAO = "https://api.open-meteo.com/v1/forecast"
 TIMEOUT = 15.0
 CHUVA_PROVAVEL = 50          # % de chance a partir da qual vale avisar
+CALOR_C = 30                 # máxima a partir da qual ele põe óculos escuros
+FRIO_C = 12                  # mínima a partir da qual ele põe cachecol
 
 UF = {
     "AC": "Acre", "AL": "Alagoas", "AP": "Amapá", "AM": "Amazonas", "BA": "Bahia", "CE": "Ceará",
@@ -97,3 +99,21 @@ def chuva_entre(prev, inicio, fim):
     chances = [p for t, p in prev["horas"].items()
                if p is not None and inicio.strftime("%Y-%m-%dT%H:00") <= t <= fim.strftime("%Y-%m-%dT%H:00")]
     return max(chances, default=0)
+
+
+def efeitos_do_dia(dia, chance_agora=None):
+    """
+    Animações que combinam com o tempo: "chuva" (guarda-chuva), "calor" (óculos escuros), "frio" (cachecol).
+    `dia` é um item de previsao()["dias"]; `chance_agora` é a chance de chuva das próximas horas, se houver.
+    """
+    if not dia:
+        return []
+    efeitos = []
+    chuva = chance_agora if chance_agora is not None else (dia.get("chuva") or 0)
+    if chuva >= CHUVA_PROVAVEL:
+        efeitos.append("chuva")
+    if dia.get("max") is not None and dia["max"] >= CALOR_C:
+        efeitos.append("calor")
+    if dia.get("min") is not None and dia["min"] <= FRIO_C:
+        efeitos.append("frio")
+    return efeitos
