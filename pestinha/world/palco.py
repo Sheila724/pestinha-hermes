@@ -108,7 +108,8 @@ class Palco(QWidget):
                 ef.encerrar(agora)
 
     def ativo(self, nome, agora):
-        return any(ef.nome == nome and not ef.acabou(agora) and ef.saida(agora) == 0.0 for ef in self.efeitos)
+        """Rodando e ainda não saindo (encerrado agora já não conta, mesmo com relógio de passo grosso)."""
+        return any(ef.nome == nome and (ef.fim is None or agora < ef.fim) for ef in self.efeitos)
 
     def limpar(self):
         self.efeitos.clear()

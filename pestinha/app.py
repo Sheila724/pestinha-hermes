@@ -240,6 +240,7 @@ class PestinhaApp(VivoMixin, SessaoMixin, InteracaoMixin, QObject):
             self.balao.enviado.connect(self.enviar_ao_hermes)
             self.pet.conversar.connect(self.abrir_conversa)
             self.mischief.fala_clicada.connect(self.abrir_conversa)
+            self.mischief.pode_responder = True
             self.atalho_conversa = ConversaHotkey()
             self.atalho_conversa.pressed.connect(self.abrir_conversa)
             self._iniciar_vivo()
