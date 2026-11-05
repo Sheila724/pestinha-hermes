@@ -21,6 +21,7 @@ STICK = 34                  # px do cabo até o corpo dele
 
 class SignThing(Thing):
     """Cartaz num cabo, preso em cima do pet."""
+    COM_X = False
 
     def __init__(self, text, style, scale=1.0):
         """Cartaz num cabo: o tamanho depende do estilo (pequeno, de marcha, de greve, castigo...)."""
@@ -61,6 +62,7 @@ class SignThing(Thing):
 
 class FlagThing(Thing):
     """Bandeira tremulando num mastro: a revolução."""
+    COM_X = False
 
     def __init__(self, text, scale=1.0):
         """Bandeira da revolução num mastro; o tamanho cresce com `scale`."""

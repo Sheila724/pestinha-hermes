@@ -33,6 +33,7 @@ class Thing(QWidget):
     """Objeto genérico na tela (post-it, meme ou foto): uma janela sem moldura que pode ser clicada, arrastada e cai."""
     clicked = Signal(object)
     fechar = Signal(object)
+    COM_X = True               # cartazes de protesto não têm ×: o clique neles é a "repressão"
 
     def __init__(self, w, h):
         """Cria a janela do objeto com o tamanho `w` x `h`, transparente e sem foco."""
@@ -41,7 +42,8 @@ class Thing(QWidget):
         self.setAttribute(Qt.WA_ShowWithoutActivating)
         self.setFixedSize(w, h)
         self.setCursor(Qt.OpenHandCursor)
-        self.setToolTip("arraste para mover · × para fechar")
+        if self.COM_X:
+            self.setToolTip("arraste para mover · × para fechar")
         self.setMouseTracking(True)
         self.born = time.monotonic()
         self.x = self.y = 0.0     # centro
@@ -71,6 +73,8 @@ class Thing(QWidget):
     # ---------- mouse: arrastar, × e clique ----------
 
     def retangulo_x(self):
+        if not self.COM_X:
+            return QRectF()
         return QRectF(self.width() - TAMANHO_X - 3, 3, TAMANHO_X, TAMANHO_X)
 
     def mousePressEvent(self, event):
