@@ -33,7 +33,7 @@ CONTAGENS = {                     # nome no resumo -> como contar para o Hermes
     "dispensadas": "{n} travessura(s) minha(s) foram dispensadas",
     "cochilos": "tirei {n} cochilo(s)",
     "protestos": "fiz {n} protesto(s) contra o cursor",
-    "perguntas": "a Sheila me perguntou {n} coisa(s)",
+    "perguntas": "a {dono} me perguntou {n} coisa(s)",
     "obedeceu": "obedeci {n} pedido(s)",
     "recusou": "recusei {n} pedido(s)",
 }
@@ -85,7 +85,7 @@ def limpar_resumo(bruto):
     return {"emocoes": emocoes, "contagens": contagens}
 
 
-def fatos(resumo):
+def fatos(resumo, dono="Sheila"):
     """O dia do pet em frases simples (vira contexto para o Hermes)."""
     lista = []
     emocoes = sorted(((m, e) for e, m in resumo.get("emocoes", {}).items() if m >= 1), reverse=True)
@@ -94,12 +94,12 @@ def fatos(resumo):
     for nome, frase in CONTAGENS.items():
         n = resumo.get("contagens", {}).get(nome, 0)
         if n:
-            lista.append(frase.format(n=n))
+            lista.append(frase.format(n=n, dono=dono))
     return lista
 
 
 def escrever_pagina(cfg, data, resumo, perguntar=hermes.perguntar):
-    lista = fatos(resumo)
+    lista = fatos(resumo, getattr(cfg, "dono", "Sheila"))
     pedido = (f"[Página do seu diário de {data}. Exceção à regra do post-it: aqui você pode escrever até "
               "5 frases, em primeira pessoa, como um diário íntimo e dramático de bichinho. "
               f"O que aconteceu hoje: {'; '.join(lista) if lista else 'quase nada, o computador ficou quieto'}.]\n"

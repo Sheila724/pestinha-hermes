@@ -1,0 +1,10 @@
+# Confere de 15 em 15 minutos os avisos de uma instância: pestinha-lado-de-fora@<nome>.timer
+[Unit]
+Description=Pestinha de %i: confere os avisos a cada 15 minutos
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=false
+
+[Install]
+WantedBy=timers.target

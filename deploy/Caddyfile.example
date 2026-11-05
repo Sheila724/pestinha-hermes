@@ -7,3 +7,11 @@ pestinha.exemplo.com.br {
 
 	reverse_proxy 127.0.0.1:8765
 }
+
+# Mais uma pessoa (pestinha-ponte@<nome>, porta PONTE_PORTA do .env dela):
+pestinha2.exemplo.com.br {
+	@interno path /interno/*
+	respond @interno 404
+
+	reverse_proxy 127.0.0.1:8766
+}
