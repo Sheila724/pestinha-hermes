@@ -17,8 +17,8 @@ VPN: só precisa de saída HTTPS.
 | Rota | Token | Para quê |
 |---|:-:|---|
 | `GET /saude` | não | Monitoramento |
-| `GET /api/eventos?desde=N` | sim | Eventos com id maior que `N` (`falar`, `humor` ou `acao`) e o `ultimo` id |
-| `POST /api/perguntar` `{"texto": "...", "estado": {...}}` | sim | Pergunta ao Hermes; devolve `{"resposta": "..."}` e, se ele pediu algo ao corpo, `"acao"` |
+| `GET /api/eventos?desde=N` | sim | Eventos com id maior que `N` (`falar`, `humor` ou `acao`) e o `ultimo` id; antes, os lembretes vencidos viram falas |
+| `POST /api/perguntar` `{"texto": "...", "estado": {...}}` | sim | Pergunta ao Hermes; devolve `{"resposta": "..."}` e, se for o caso, `"acao"` (pedido ao corpo) e `"efeitos"` (animações do tempo) |
 | `POST /api/conversa/esquecer` | sim | Apaga a memória curta da conversa (as últimas 8 mensagens, que somem sozinhas após 30 min) |
 | `GET /api/perfil` / `POST /api/perfil` `{"cidade": "Franca, SP", "entrada": "08:00", "saida": "18:00"}` | sim | Cidade e horários dos avisos do lado de fora |
 | `POST /api/dia` `{"data": "2026-11-04", "emocoes": {...}, "contagens": {...}}` | sim | Resumo do dia do pet, para o diário |
@@ -29,6 +29,14 @@ O `/api/perguntar` também aceita `"respondendo": "<texto do post-it>"`, quando 
 pet; junto com a memória curta, isso deixa a conversa continuar. O `estado` (opcional) é `{"emocao": "bravo", "energia": 0.3, "dormindo": false}`: vira uma linha de contexto
 para o Hermes falar no tom certo. As ações possíveis estão em `ponte/acoes.py`; o Hermes as pede terminando
 a resposta com `[acao: nome]`, e quem decide se obedece é o pet.
+
+Falas podem trazer `"efeitos"`: animações que o pet faz junto (`chuva`, `calor`, `frio`, `festa`, `diario`,
+`lembrete`). Vêm nos avisos do lado de fora, na página do diário, nos lembretes e nas perguntas sobre o tempo.
+
+**Lembretes** (`ponte/lembretes.py`): o Hermes termina a resposta com `[lembrete: +30 | o que lembrar]`
+(`+30`, `+2h`, `16:00`, `06/11 09:00`) ou `[cancelar: N]`. A ponte calcula a hora no fuso da cidade, guarda no
+SQLite, acrescenta "Anotado para HH:MM." e, quando vence, põe a fala na fila com o efeito `lembrete`. Os
+marcados vão para o Hermes numa linha de contexto, para ele listar e cancelar.
 
 Token: `Authorization: Bearer <PONTE_TOKEN>`. O Hermes nunca fica exposto; a persona
 (`ponte/persona.md`) mantém as respostas curtas, do tamanho de um post-it.
