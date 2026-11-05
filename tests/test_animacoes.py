@@ -172,28 +172,69 @@ def _nota(texto="oi"):
     return n
 
 
-def test_arrastar_move_e_nao_conta_como_clique():
+BARRA = QPointF(60, 12).toPoint()                                     # na barra de cima, longe do ×
+
+
+def _esperar_clique():
+    QTest.qWait(QApplication.doubleClickInterval() + 80)
+
+
+def test_arrasta_pela_barra_como_janela():
     n = _nota()
     cliques = []
     n.clicked.connect(cliques.append)
     x0, y0 = n.x, n.y
-    QTest.mousePress(n, Qt.LeftButton, Qt.NoModifier, n.rect().center())
-    destino = n.rect().center() + QPointF(60, 40).toPoint()
+    QTest.mousePress(n, Qt.LeftButton, Qt.NoModifier, BARRA)
+    destino = BARRA + QPointF(60, 40).toPoint()
     QTest.mouseMove(n, destino)
     QTest.mouseRelease(n, Qt.LeftButton, Qt.NoModifier, destino)
     assert (n.x, n.y) != (x0, y0) and n.arrastado and cliques == []
+    QTest.mouseClick(n, Qt.LeftButton, Qt.NoModifier, BARRA)               # clicar na barra: nada
+    assert cliques == []
     n.close()
 
 
-def test_toque_sem_arrastar_e_clique_e_o_x_fecha():
+def test_pelo_corpo_nao_arrasta_nem_fecha():
+    n = _nota()
+    cliques = []
+    n.clicked.connect(cliques.append)
+    x0 = n.x
+    centro = n.rect().center()
+    QTest.mousePress(n, Qt.LeftButton, Qt.NoModifier, centro)
+    QTest.mouseMove(n, centro + QPointF(60, 0).toPoint())
+    QTest.mouseRelease(n, Qt.LeftButton, Qt.NoModifier, centro + QPointF(60, 0).toPoint())
+    assert n.x == x0 and cliques == []                                    # escorregou: não vale como clique
+    n.close()
+
+
+def test_clique_no_corpo_e_x():
     n = _nota()
     cliques, fechados = [], []
     n.clicked.connect(cliques.append)
     n.fechar.connect(fechados.append)
     QTest.mouseClick(n, Qt.LeftButton, Qt.NoModifier, n.rect().center())
-    assert cliques == [n] and fechados == []
+    assert cliques == [n] and fechados == []                              # sem clique duplo: vale na hora
     QTest.mouseClick(n, Qt.LeftButton, Qt.NoModifier, n.retangulo_x().center().toPoint())
     assert fechados == [n] and len(cliques) == 1
+    n.close()
+
+
+def test_clique_duplo_responde_e_nao_vira_clique():
+    n = _nota()
+    n.aceita_duplo = True
+    cliques, respostas = [], []
+    n.clicked.connect(cliques.append)
+    n.responder.connect(respostas.append)
+    centro = n.rect().center()
+    QTest.mouseClick(n, Qt.LeftButton, Qt.NoModifier, centro)
+    assert cliques == []                                                  # espera para ver se vem o 2º
+    QTest.mouseDClick(n, Qt.LeftButton, Qt.NoModifier, centro)
+    QTest.mouseRelease(n, Qt.LeftButton, Qt.NoModifier, centro)
+    _esperar_clique()
+    assert respostas == [n] and cliques == []
+    QTest.mouseClick(n, Qt.LeftButton, Qt.NoModifier, centro)
+    _esperar_clique()
+    assert cliques == [n]                                                 # clique sozinho vale depois da espera
     n.close()
 
 
@@ -215,9 +256,9 @@ def test_objeto_carregado_pelo_pet_nao_e_arrastado():
     n = _nota()
     n.carried = True
     x0 = n.x
-    QTest.mousePress(n, Qt.LeftButton, Qt.NoModifier, n.rect().center())
-    QTest.mouseMove(n, n.rect().center() + QPointF(80, 0).toPoint())
-    QTest.mouseRelease(n, Qt.LeftButton, Qt.NoModifier, n.rect().center())
+    QTest.mousePress(n, Qt.LeftButton, Qt.NoModifier, BARRA)
+    QTest.mouseMove(n, BARRA + QPointF(80, 0).toPoint())
+    QTest.mouseRelease(n, Qt.LeftButton, Qt.NoModifier, BARRA)
     assert n.x == x0
     n.close()
 
@@ -248,22 +289,70 @@ def _fechar(app):
     app.tray.icon.hide()
 
 
-def test_fechar_travessura_pelo_x_ensina_sem_frustrar(tmp_path, monkeypatch):
+def _travessura(app):
     from pestinha.world.objetos import NoteThing
+    nota = NoteThing("travessura")
+    app.mischief._ligar_travessura(nota)
+    app.mischief._add(nota)
+    return nota
+
+
+def test_fechar_travessura_pelo_x_ensina_sem_frustrar(tmp_path, monkeypatch):
     app = _app(tmp_path, com_hermes=False)
     try:
         pulsos, aprendeu = [], []
         monkeypatch.setattr(app.senses, "dismissed", lambda *a, **k: pulsos.append(1))
         monkeypatch.setattr(app.mischief_ctl.memory, "on_dismiss", lambda *a: aprendeu.append(a))
-        nota = NoteThing("travessura")
-        app.mischief._ligar_travessura(nota)
-        app.mischief._add(nota)
-        QTest.mouseClick(nota, Qt.LeftButton, Qt.NoModifier, nota.rect().center())   # clique no corpo: nada
-        assert nota in app.mischief.things
+        nota = _travessura(app)
         QTest.mouseClick(nota, Qt.LeftButton, Qt.NoModifier, nota.retangulo_x().center().toPoint())
         assert nota not in app.mischief.things
         assert pulsos == [] and len(aprendeu) == 1                     # aprende, mas não fica bravo
         assert app.mischief_ctl.penalty_until > time.monotonic()        # e dá um tempo antes da próxima
+    finally:
+        _fechar(app)
+
+
+def test_fechar_travessura_com_clique_deixa_bravo(tmp_path, monkeypatch):
+    app = _app(tmp_path)
+    try:
+        pulsos = []
+        monkeypatch.setattr(app.senses, "dismissed", lambda *a, **k: pulsos.append(1))
+        nota = _travessura(app)
+        assert nota.aceita_duplo                                        # com o Hermes, espera o clique duplo
+        QTest.mouseClick(nota, Qt.LeftButton, Qt.NoModifier, nota.rect().center())
+        _esperar_clique()
+        assert nota not in app.mischief.things and pulsos == [1]        # frustração: a raiva sobe
+        assert app.palco.ativo("bufo", time.monotonic())               # e ele bufa
+    finally:
+        _fechar(app)
+
+
+def test_clique_duplo_na_travessura_responde_sem_raiva(tmp_path, monkeypatch):
+    app = _app(tmp_path)
+    try:
+        pulsos = []
+        monkeypatch.setattr(app.senses, "dismissed", lambda *a, **k: pulsos.append(1))
+        nota = _travessura(app)
+        centro = nota.rect().center()
+        QTest.mouseDClick(nota, Qt.LeftButton, Qt.NoModifier, centro)
+        QTest.mouseRelease(nota, Qt.LeftButton, Qt.NoModifier, centro)
+        _esperar_clique()
+        assert nota not in app.mischief.things and pulsos == []
+        assert app.balao.isVisible() and app.balao.respondendo == "travessura"
+        app.balao.hide()
+    finally:
+        _fechar(app)
+
+
+def test_sem_hermes_clique_fecha_na_hora(tmp_path, monkeypatch):
+    app = _app(tmp_path, com_hermes=False)
+    try:
+        pulsos = []
+        monkeypatch.setattr(app.senses, "dismissed", lambda *a, **k: pulsos.append(1))
+        nota = _travessura(app)
+        assert not nota.aceita_duplo
+        QTest.mouseClick(nota, Qt.LeftButton, Qt.NoModifier, nota.rect().center())
+        assert nota not in app.mischief.things and pulsos == [1]
     finally:
         _fechar(app)
 

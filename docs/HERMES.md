@@ -29,7 +29,7 @@ ilegível ou incompleto, o log diz o motivo.
 
 - **Falas da VPS:** o que o cron do Hermes (ou qualquer script na VPS) põe em `/interno/eventos`
   aparece como post-it perto do pet. Pausado ou escondido, as falas esperam até ele voltar.
-- **Conversar:** clique duplo no pet, Ctrl+Alt+P ou clique num post-it dele (veja abaixo). A resposta chega num post-it.
+- **Conversar:** clique duplo no pet, Ctrl+Alt+P ou clique duplo num post-it dele (veja abaixo). A resposta chega num post-it.
 - **Sem travar:** a rede roda em threads próprias (`pestinha/sense/hermes.py`); com a VPS fora do ar
   ele espera cada vez mais entre tentativas (até 60 s) e o pet segue normal.
 - **Sem repetir:** o último evento mostrado fica em `memory/hermes_ultimo.txt`. Na primeira conexão,
@@ -41,9 +41,9 @@ Três jeitos de abrir o balão de conversa, que aparece em cima do pet no estilo
 
 - **Clique duplo no pet.**
 - **Ctrl+Alt+P** de qualquer lugar (Windows). Se o pet estiver escondido, ele volta para conversar.
-- **Clicar num post-it dele.** O balão abre mostrando o que ele disse, e a resposta continua a partir dali
-  ("e amanhã?" depois de um aviso de chuva). Clicar numa fala do Hermes não conta como travessura
-  dispensada: o pet não fica frustrado por isso.
+- **Clique duplo num post-it dele.** O balão abre mostrando o que ele disse, e a resposta continua a
+  partir dali ("e amanhã?" depois de um aviso de chuva). Vale para as falas do Hermes e para as travessuras,
+  e não conta como travessura dispensada.
 
 **Enter** envia, **Esc** ou o **×** do balão fecham. Fechar só esconde o balão: a memória curta continua.
 O menu do botão direito também tem **Conversar**.
@@ -76,9 +76,17 @@ uma janela transparente que segue o pet e deixa o clique passar (`pestinha/world
 A ponte manda as animações do tempo junto do aviso ou da resposta (`"efeitos": ["chuva", "festa"]`).
 Para ver na hora, na VPS: `.venv/bin/python -m ponte.lado_de_fora --agora`.
 
-**Post-its:** todos dá para **arrastar** para onde quiser e fechar no **×**. Clicar num post-it do Hermes
-responde a ele; clicar numa travessura não faz nada. Fechar uma travessura no × ensina o pet a dar um
-tempo antes da próxima, mas sem frustração: ele não fica bravo nem tremendo.
+**Post-its, memes e fotos** funcionam como uma janela:
+
+| Mouse | Travessura dele | Fala do Hermes |
+| --- | --- | --- |
+| Arrastar pela **barra de cima** | Leva para onde você quiser | Igual |
+| **Clique duplo** | Responde a ela (com o Hermes ligado) | Responde a ela |
+| **Um clique** | Fecha, e a **raiva sobe** (ele bufa; várias seguidas, faz drama) | Fecha, sem raiva |
+| **×** | Fecha numa boa: ele só espera um pouco antes da próxima | Fecha |
+
+Com o Hermes ligado, um clique espera o tempo de um clique duplo antes de fechar. Os cartazes de protesto
+não têm barra nem ×: arrancar o cartaz continua sendo "repressão".
 
 ## Pesquisar na internet
 
