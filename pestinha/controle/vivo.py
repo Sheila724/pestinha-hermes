@@ -5,7 +5,8 @@ VIVO - o pet reagindo com o corpo à conversa com o Hermes (mixin do app).
   você manda a pergunta    nuvem de pensamento (com lupa se demora); some num "puf" e a resposta sai voando
   chega fala da VPS        "!" em cima da cabeça, e o post-it sai voando de trás dele
   efeitos da ponte         chuva = guarda-chuva · calor = óculos escuros e sol · frio = cachecol e neve ·
-                           festa = chapéu e confete · diario = caderninho
+                           festa = chapéu e confete · diario = caderninho ·
+                           lembrete = acorda (no susto, se dormia) e toca o despertador, depois o post-it
   pedido do Hermes         obedece: estrela e pulinho · recusa: revira os olhos, bufa e diz por quê
   você fecha a conversa    piscadinha e coraçãozinho
   anotou algo no diário    tira o caderninho e rabisca (sempre que anota; várias anotações seguidas
@@ -26,6 +27,7 @@ ATRASO_FALA_S = 0.55
 ATRASO_RESPOSTA_S = 0.3
 ATRASO_ACAO_S = 0.6
 ATRASO_RECUSA_S = 0.5
+ATRASO_LEMBRETE_S = 1.1             # o post-it do lembrete sai com o despertador já tocando
 RABISCO_INTERVALO_S = 25.0
 RABISCO_ESPERA_S = 1.0
 PENSANDO_MAX_S = 170.0
@@ -88,15 +90,19 @@ class VivoMixin:
             return
         self.anotar_diario()
         agora = time.monotonic()
-        atraso_fala = ATRASO_FALA_S
+        atraso_fala, exclamar = ATRASO_FALA_S, True
         for tipo, texto in self.hermes.coletar():
             if tipo == "efeito":
                 self.efeito(texto, agora)
                 if texto == "diario":
                     atraso_fala = RABISCO_S - 0.2              # o post-it sai depois que ele guarda o caderno
+                elif texto == "lembrete":
+                    atraso_fala, exclamar = ATRASO_LEMBRETE_S, False    # o despertador já chama atenção
             elif tipo == "falar":
-                self.palco.iniciar("exclamacao", agora)
+                if exclamar:
+                    self.palco.iniciar("exclamacao", agora)
                 self.agendar(atraso_fala, lambda t=texto: self.mostrar_fala(t), agora)
+                atraso_fala, exclamar = ATRASO_FALA_S, True    # os efeitos valem só para a fala que acompanham
             elif tipo in ("resposta", "erro"):
                 self._fim_da_pergunta(agora)
                 self.agendar(ATRASO_RESPOSTA_S, lambda t=texto: self.mostrar_fala(t), agora)
@@ -115,6 +121,12 @@ class VivoMixin:
         if nome == "diario":
             self.figurino.rabiscar(agora)
             self._ultimo_rabisco = agora
+            return
+        if nome == "lembrete":
+            if self.asleep:
+                self.sleep.wake(startled=True)         # acorda no susto com o despertador
+            self.palco.iniciar("despertador", agora)
+            self.pular()
             return
         if nome in FIGURINO_DO_TEMPO:
             peca, dur = FIGURINO_DO_TEMPO[nome]

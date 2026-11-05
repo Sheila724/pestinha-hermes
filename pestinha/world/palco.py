@@ -42,6 +42,7 @@ TEMPOS = {
     "calor": (20.0, 0.6),
     "frio": (20.0, 0.8),
     "brilho": (1.4, 0.3),
+    "despertador": (3.2, 0.35),
 }
 LUPA_DEPOIS_S = 8.0
 
@@ -560,7 +561,81 @@ def _brilho(p, ef, agora, _ang):
         p.restore()
 
 
+
+TOCANDO_S = 2.3                  # o despertador toca esse tanto e depois sossega
+
+
+def _despertador(p, ef, agora, _ang):
+    """Despertador de dois sininhos: pula em cima da cabeça e toca tremendo, com ondinhas de som."""
+    t = agora - ef.inicio
+    sai = ef.saida(agora)
+    tocando = t < TOCANDO_S
+    p.translate(0, -118 - 18 * com_volta(limitar(t / 0.35)) + 40 * acelerar(sai))
+    p.setOpacity(1.0 - sai)
+    # ondinhas de som dos dois lados
+    if tocando:
+        for lado in (-1, 1):
+            for k in range(3):
+                fase = (t * 3.2 + k / 3) % 1.0
+                p.save()
+                p.setOpacity((1.0 - fase) * (1.0 - sai))
+                p.setPen(QPen(QColor("#ff8c42"), 3, Qt.SolidLine, Qt.RoundCap))
+                r = 36 + 26 * fase
+                inicio = 140 if lado < 0 else -40
+                p.drawArc(QRectF(-r, -r, 2 * r, 2 * r), inicio * 16, 80 * 16)
+                p.restore()
+    tremor = (13 * math.sin(t * 2 * math.pi * 14) * (1.0 - 0.3 * limitar(t / TOCANDO_S))) if tocando \
+        else 9 * balanco(t - TOCANDO_S, 2.5, 4.0)
+    p.rotate(tremor)
+    p.scale(*(2 * [elastico(limitar(t / 0.5))]))
+    contorno = QPen(CONTORNO, 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+    # perninhas
+    p.setPen(QPen(CONTORNO, 4, Qt.SolidLine, Qt.RoundCap))
+    p.drawLine(QPointF(-16, 22), QPointF(-22, 33))
+    p.drawLine(QPointF(16, 22), QPointF(22, 33))
+    # sininhos e o martelinho batendo entre eles
+    p.setPen(contorno)
+    p.setBrush(QColor("#ffd23f"))
+    for lado in (-1, 1):
+        p.save()
+        p.rotate(lado * 38)
+        sino = QPainterPath()
+        sino.moveTo(-13, -26)
+        sino.cubicTo(-13, -46, 13, -46, 13, -26)
+        sino.closeSubpath()
+        p.drawPath(sino)
+        p.restore()
+    martelo = 30 * math.sin(t * 2 * math.pi * 14) if tocando else 0.0
+    p.save()
+    p.rotate(martelo)
+    p.setPen(QPen(CONTORNO, 3, Qt.SolidLine, Qt.RoundCap))
+    p.drawLine(QPointF(0, -26), QPointF(0, -40))
+    p.setBrush(QColor("#ffd23f"))
+    p.drawEllipse(QPointF(0, -42), 4, 4)
+    p.restore()
+    # corpo e mostrador
+    p.setPen(contorno)
+    p.setBrush(QColor("#e63946"))
+    p.drawEllipse(QPointF(0, 0), 29, 29)
+    p.setBrush(QColor("#fff8e7"))
+    p.drawEllipse(QPointF(0, 0), 21, 21)
+    p.setPen(QPen(CONTORNO, 2, Qt.SolidLine, Qt.RoundCap))
+    for h in range(12):
+        a = h * math.pi / 6
+        dentro = 16 if h % 3 else 14
+        p.drawLine(QPointF(dentro * math.sin(a), -dentro * math.cos(a)), QPointF(18 * math.sin(a), -18 * math.cos(a)))
+    p.setPen(QPen(CONTORNO, 3, Qt.SolidLine, Qt.RoundCap))
+    p.drawLine(QPointF(0, 0), QPointF(0, -13))                       # ponteiro dos minutos
+    p.drawLine(QPointF(0, 0), QPointF(9, 4))                         # ponteiro das horas
+    p.setPen(Qt.NoPen)
+    p.setBrush(CONTORNO)
+    p.drawEllipse(QPointF(0, 0), 2.5, 2.5)
+    p.setBrush(QColor(255, 255, 255, 140))
+    p.drawEllipse(QPointF(-12, -14), 5, 3.5)                         # brilho no vidro
+
+
 DESENHOS = {
     "pensando": _pensando, "exclamacao": _exclamacao, "guarda_chuva": _guarda_chuva, "estrela": _estrela,
     "bufo": _bufo, "confete": _confete, "calor": _calor, "frio": _frio, "brilho": _brilho,
+    "despertador": _despertador,
 }
