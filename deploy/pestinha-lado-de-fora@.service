@@ -1,0 +1,10 @@
+# Avisos do lado de fora e diário de uma instância: pestinha-lado-de-fora@<nome> (veja pestinha-ponte@.service).
+[Unit]
+Description=Pestinha de %i: avisos do lado de fora e diário
+After=network-online.target pestinha-ponte@%i.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/pestinha-hermes/ponte
+EnvironmentFile=%h/.config/pestinha/%i.env
+ExecStart=%h/pestinha-hermes/ponte/.venv/bin/python -m ponte.lado_de_fora

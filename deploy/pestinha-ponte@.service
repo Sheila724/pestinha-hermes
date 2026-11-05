@@ -1,0 +1,16 @@
+# Mais uma pessoa com o próprio Pestinha + Hermes na mesma VPS (veja docs/OUTRA-PESSOA.md).
+# Uma instância por pessoa: pestinha-ponte@<nome> lê ~/.config/pestinha/<nome>.env
+# (PONTE_PORTA, PONTE_TOKEN, HERMES_URL do perfil dela, PONTE_DONO, PONTE_JEITO...).
+[Unit]
+Description=Ponte do Pestinha de %i
+After=network-online.target hermes-gateway-%i.service
+
+[Service]
+WorkingDirectory=%h/pestinha-hermes/ponte
+EnvironmentFile=%h/.config/pestinha/%i.env
+ExecStart=%h/pestinha-hermes/ponte/.venv/bin/uvicorn --factory ponte.app:app_padrao --host 127.0.0.1 --port ${PONTE_PORTA}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

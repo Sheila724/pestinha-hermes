@@ -145,6 +145,7 @@ Open-Meteo.
 - **Pet:** veja [docs/PESTINHA.md](docs/PESTINHA.md) (instalação, interação, privacidade e como gerar o executável).
 - **Ligar o pet ao Hermes:** [docs/HERMES.md](docs/HERMES.md).
 - **Ponte na VPS:** [ponte/README.md](ponte/README.md).
+- **Outra pessoa com o próprio pet, Hermes e personalidade, na mesma VPS:** [docs/OUTRA-PESSOA.md](docs/OUTRA-PESSOA.md).
 
 ## Testes
 
