@@ -411,3 +411,17 @@ def test_cliente_entrega_efeitos_antes_da_fala(tmp_path):
     c._efeitos(["chuva", "", 3, "festa"])
     c._efeitos("nao-e-lista")
     assert c.coletar() == [("efeito", "chuva"), ("efeito", "festa")]
+
+
+def test_cartaz_de_protesto_nao_tem_x():
+    from pestinha.world.cartazes import SignThing
+    c = SignThing("Abaixo o castigo!", "march", 1.0)
+    c.place(300, 300)
+    c.show()
+    cliques, fechados = [], []
+    c.clicked.connect(cliques.append)
+    c.fechar.connect(fechados.append)
+    canto = QPointF(c.width() - 10, 10).toPoint()                       # onde ficaria o ×
+    QTest.mouseClick(c, Qt.LeftButton, Qt.NoModifier, canto)
+    assert cliques == [c] and fechados == [] and "×" not in c.toolTip()
+    c.close()
