@@ -5,6 +5,7 @@ Outra pessoa pode ter o próprio Pestinha com Hermes na **mesma VPS**, sem mistu
 | | Você | Ela |
 | --- | --- | --- |
 | Perfil do Hermes (memória, sessões, configuração) | padrão, `~/.hermes/` | `pestinha2`, `~/.hermes/profiles/pestinha2/` |
+| Processo do Hermes | `hermes-gateway` | `hermes-gateway-pestinha2` |
 | API do Hermes | `127.0.0.1:8642` | `127.0.0.1:8643` |
 | Ponte (token, fila, conversa, lembretes, cidade, diário) | `pestinha-ponte`, porta 8765 | `pestinha-ponte@pestinha2`, porta 8766 |
 | Endereço | `pestinha.gapsaa.com.br` | `pestinha2.gapsaa.com.br` |
@@ -42,12 +43,22 @@ printf 'API_SERVER_ENABLED=true\nAPI_SERVER_HOST=127.0.0.1\nAPI_SERVER_PORT=8643
 chmod 600 "$P/.env"
 cut -d= -f1 "$P/.env"                                      # deve listar as chaves e as 4 linhas API_SERVER_
 grep -A3 platform_toolsets "$P/config.yaml"                # api_server: [web, memory]
-hermes -p pestinha2 gateway install
-systemctl --user status hermes-gateway-pestinha2 --no-pager | sed -n 3p
-curl -s http://127.0.0.1:8643/health
+grep -n "api_server: \[" "$P/config.yaml"                  # api_server: [web, memory]
+hermes -p pestinha2 config set gateway.standalone true     # avisa que a chave não é reconhecida: tudo bem
+sleep 35
+hermes -p pestinha2 gateway install                        # responda Y às duas perguntas
+systemctl --user list-units --no-pager | grep -i hermes    # hermes-gateway e hermes-gateway-pestinha2
+curl -s http://127.0.0.1:8643/health; echo                 # a dela
+curl -s http://127.0.0.1:8642/health; echo                 # a sua continua no ar
 ```
 
 Se a chave do Gemini tiver outro nome no `cut` do seu `.env`, acrescente a linha dela no `$P/.env` à mão.
+
+**Por que `gateway.standalone`.** No Hermes 0.22, um gateway só atende todos os perfis, mas a API (`/v1`)
+dele é só do perfil padrão: não abre a porta do perfil novo, e o `model_routes` troca só o modelo, não a
+memória. Com `gateway.standalone: true`, o perfil dela ganha um processo próprio
+(`hermes-gateway-pestinha2`), que lê o `.env` dela e sobe a API na 8643. O Hermes avisa que essa chave é
+provisória: quando ele passar a ter API por perfil no gateway único, este passo muda.
 
 ## 4. Ponte dela
 
@@ -115,5 +126,7 @@ ele não deve saber nada.
 - Trocar o jeito ou o nome: edite `PONTE_JEITO`/`PONTE_DONO` no `.env` dela e reinicie a ponte dela. Os
   jeitos ficam em `ponte/ponte/jeitos/`; um arquivo novo lá vira um jeito novo.
 - Cortar o acesso dela: troque o `PONTE_TOKEN` no `.env` dela e reinicie.
+- Atualizar o Hermes: depois do `hermes update`, reinicie os dois
+  (`systemctl --user restart hermes-gateway hermes-gateway-pestinha2`).
 - Desfazer tudo: `systemctl --user disable --now pestinha-ponte@pestinha2 pestinha-lado-de-fora@pestinha2.timer`,
   `hermes profile delete pestinha2`, apague o `.env` e o `.db` dela e o bloco do Caddyfile.
