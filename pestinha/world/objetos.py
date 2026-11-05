@@ -3,10 +3,12 @@ OBJETOS - os post-its, memes e fotos que o pet traz, como janelas na tela.
 
 Só desenho e mouse. Quem decide criar, largar e remover fica em mischief.py.
 
-Mouse:
-  arrastar   leva o objeto para onde você quiser (ele fica onde você soltar)
-  ×          botão no canto: fecha (sinal `fechar`)
-  clique     um toque sem arrastar (sinal `clicked`): num post-it do Hermes, responde a ele
+Mouse (como uma janela do navegador):
+  barra de cima   arrastar leva o objeto para onde você quiser (ele fica onde você soltar)
+  ×               botão no canto da barra: fecha numa boa (sinal `fechar`)
+  clique          no corpo do objeto (sinal `clicked`): numa travessura, fecha e ele fica bravo
+  clique duplo    (sinal `responder`, se `aceita_duplo`): abre a conversa respondendo ao objeto
+Com `aceita_duplo`, o clique simples espera o tempo de um clique duplo antes de valer.
 Os objetos podem chegar voando (`voar_de`) e balançam um pouco quando pousam.
 """
 
@@ -14,15 +16,17 @@ import math
 import random
 import time
 
-from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPixmap
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QApplication, QWidget
 
 from ..body.animacao import balanco, bezier, com_volta, limitar
 from ..body.pet import overlay_flags, set_no_activate
 from ..ajustes import DISTANCIA_INICIO_ARRASTE as ARRASTE_PX, GRAVIDADE as GRAVITY
 
 TAMANHO_X = 20                   # botão de fechar no canto
+BARRA_PX = 30                    # faixa de cima por onde se arrasta (como a barra de uma janela)
+FAIXA_PX = 18                    # a faixa amarela mais escura do post-it, que mostra onde fica a barra
 VOO_S = 0.65
 
 NOTE_SIZE = (180, 150)
@@ -33,7 +37,9 @@ class Thing(QWidget):
     """Objeto genérico na tela (post-it, meme ou foto): uma janela sem moldura que pode ser clicada, arrastada e cai."""
     clicked = Signal(object)
     fechar = Signal(object)
-    COM_X = True               # cartazes de protesto não têm ×: o clique neles é a "repressão"
+    responder = Signal(object)
+    COM_X = True               # cartazes de protesto não têm × nem barra: o clique neles é a "repressão"
+    COM_BARRA = True
 
     def __init__(self, w, h):
         """Cria a janela do objeto com o tamanho `w` x `h`, transparente e sem foco."""
@@ -41,9 +47,8 @@ class Thing(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
         self.setFixedSize(w, h)
-        self.setCursor(Qt.OpenHandCursor)
         if self.COM_X:
-            self.setToolTip("arraste para mover · × para fechar")
+            self.setToolTip("clique fecha · × fecha numa boa · arraste pela barra de cima")
         self.setMouseTracking(True)
         self.born = time.monotonic()
         self.x = self.y = 0.0     # centro
@@ -55,10 +60,18 @@ class Thing(QWidget):
         self.pousou_em = None      # quando pousou (para o balancinho)
         self.voo = None            # (origem, controle, destino, início, giro inicial)
         self.arrastado = False     # você já o tirou do lugar: o pet não mexe mais nele
-        self._aperto = None        # (pos global, deslocamento até o centro) no botão apertado
+        self._aperto = None        # (pos global, deslocamento até o centro, apertou na barra)
         self._arrastando = False
+        self._desistiu = False     # apertou no corpo e arrastou: não vale como clique
         self._no_x = False         # mouse em cima do ×
+        self._na_barra = False     # mouse em cima da barra
         self._apertou_x = False
+        self._duplo = False        # o soltar que vem depois do clique duplo não conta
+        self.aceita_duplo = False  # quem cria liga, quando o clique duplo responde
+        self._clique = QTimer(self)
+        self._clique.setSingleShot(True)
+        self._clique.setInterval(QApplication.doubleClickInterval())
+        self._clique.timeout.connect(self._clique_confirmado)
 
     def showEvent(self, event):
         """Ao aparecer, o objeto não rouba o foco do programa que você está usando."""
@@ -77,29 +90,58 @@ class Thing(QWidget):
             return QRectF()
         return QRectF(self.width() - TAMANHO_X - 3, 3, TAMANHO_X, TAMANHO_X)
 
+    def retangulo_barra(self):
+        return QRectF(0, 0, self.width(), BARRA_PX) if self.COM_BARRA else QRectF()
+
+    def _onde(self, pos):
+        """"x", "barra" ou "corpo"."""
+        if self.retangulo_x().contains(pos):
+            return "x"
+        return "barra" if self.retangulo_barra().contains(pos) else "corpo"
+
     def mousePressEvent(self, event):
-        """Botão apertado: no × prepara para fechar; no resto, pode virar arraste ou clique."""
+        """Botão apertado: no × prepara para fechar; na barra pode virar arraste; no corpo, clique."""
         if event.button() != Qt.LeftButton:
             return
-        if self.retangulo_x().contains(event.position()):
+        onde = self._onde(event.position())
+        if onde == "x":
             self._apertou_x = True
             return
         pos = event.globalPosition()
-        self._aperto = (pos, (self.x - pos.x(), self.y - pos.y()))
-        self._arrastando = False
+        self._aperto = (pos, (self.x - pos.x(), self.y - pos.y()), onde == "barra")
+        self._arrastando = self._desistiu = False
+
+    def mouseDoubleClickEvent(self, event):
+        """Clique duplo: responde (se quem criou aceita); senão vale como mais um clique."""
+        if event.button() != Qt.LeftButton:
+            return
+        if not self.aceita_duplo or self._onde(event.position()) == "x":
+            self.mousePressEvent(event)
+            return
+        self._clique.stop()
+        self._duplo = True
+        self._aperto = None
+        self.responder.emit(self)
 
     def mouseMoveEvent(self, event):
-        """Arrasta (se o botão está apertado) ou acende o × quando o mouse passa por cima."""
-        no_x = self.retangulo_x().contains(event.position())
-        if no_x != self._no_x:
-            self._no_x = no_x
-            self.setCursor(Qt.PointingHandCursor if no_x else Qt.OpenHandCursor)
+        """Arrasta pela barra (com o botão apertado) e acende o × e a barra quando o mouse passa por cima."""
+        onde = self._onde(event.position())
+        no_x, na_barra = onde == "x", onde == "barra"
+        if (no_x, na_barra) != (self._no_x, self._na_barra):
+            self._no_x, self._na_barra = no_x, na_barra
+            if not self._arrastando:
+                self.setCursor(Qt.PointingHandCursor if no_x else Qt.OpenHandCursor if na_barra
+                               else Qt.ArrowCursor)
             self.update()
-        if self._aperto is None or self.carried:
+        if self._aperto is None:
             return
         pos = event.globalPosition()
-        inicio, (dx, dy) = self._aperto
-        if not self._arrastando and math.hypot(pos.x() - inicio.x(), pos.y() - inicio.y()) < ARRASTE_PX:
+        inicio, (dx, dy), pela_barra = self._aperto
+        longe = math.hypot(pos.x() - inicio.x(), pos.y() - inicio.y()) >= ARRASTE_PX
+        if not pela_barra or self.carried:
+            self._desistiu = self._desistiu or longe          # escorregou o mouse no corpo: não fecha
+            return
+        if not self._arrastando and not longe:
             return
         if not self._arrastando:
             self._arrastando = True
@@ -109,7 +151,7 @@ class Thing(QWidget):
         self.place(pos.x() + dx, pos.y() + dy)
 
     def mouseReleaseEvent(self, event):
-        """Soltou: no × fecha; se não arrastou, foi um clique."""
+        """Soltou: no × fecha; arrastando, larga; no corpo, é clique (esperando um possível clique duplo)."""
         if event.button() != Qt.LeftButton:
             return
         if self._apertou_x:
@@ -117,19 +159,37 @@ class Thing(QWidget):
             if self.retangulo_x().contains(event.position()):
                 self.fechar.emit(self)
             return
-        arrastou, self._aperto, self._arrastando = self._arrastando, None, False
+        if self._duplo:
+            self._duplo = False
+            return
+        aperto, arrastou, desistiu = self._aperto, self._arrastando, self._desistiu
+        self._aperto, self._arrastando, self._desistiu = None, False, False
         if arrastou:
             self.setCursor(Qt.OpenHandCursor)
             self.pousou_em = time.monotonic()                     # balancinho de quem foi largado
             self.update()
+        elif aperto is None or aperto[2] or desistiu:
+            return                                                # na barra sem arrastar: nada (como numa janela)
+        elif self.aceita_duplo:
+            self._clique.start()
         else:
             self.clicked.emit(self)
 
+    def _clique_confirmado(self):
+        if self.isVisible():
+            self.clicked.emit(self)
+
     def leaveEvent(self, event):
-        if self._no_x:
-            self._no_x = False
+        if self._no_x or self._na_barra:
+            self._no_x = self._na_barra = False
             self.update()
         super().leaveEvent(event)
+
+    def desenhar_pegador(self, p, centro_x, centro_y, cor):
+        """Três risquinhos no meio da barra: o "pegador" de arrastar."""
+        p.setPen(QPen(cor, 1.6, Qt.SolidLine, Qt.RoundCap))
+        for k in (-4, 0, 4):
+            p.drawLine(QPointF(centro_x - 9, centro_y + k), QPointF(centro_x + 9, centro_y + k))
 
     def desenhar_x(self, p):
         """O botão de fechar no canto: discreto, acende quando o mouse passa por cima."""
@@ -208,6 +268,12 @@ class ImageThing(Thing):
         p.translate(self.width() / 2, self.height() / 2)
         p.rotate(self.tilt * 0.5)
         p.drawPixmap(-self.pix.width() // 2, -self.pix.height() // 2, self.pix)
+        p.resetTransform()
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(30, 32, 40, 190 if self._na_barra else 120))
+        p.drawRoundedRect(QRectF(4, 2, self.width() - 8, BARRA_PX - 6), 7, 7)
+        self.desenhar_pegador(p, self.width() / 2, 2 + (BARRA_PX - 6) / 2, QColor(255, 255, 255, 200))
         self.desenhar_x(p)
         p.end()
 
@@ -236,10 +302,11 @@ class NoteThing(Thing):
         p.drawRect(rect.translated(3, 4))
         p.setBrush(QColor("#ffe97a"))
         p.drawRect(rect)
-        p.setBrush(QColor("#f5d84f"))
-        p.drawRect(QRectF(rect.left(), rect.top(), rect.width(), 14))
+        p.setBrush(QColor("#ecc93a") if self._na_barra else QColor("#f5d84f"))
+        p.drawRect(QRectF(rect.left(), rect.top(), rect.width(), FAIXA_PX))
+        self.desenhar_pegador(p, 0, rect.top() + FAIXA_PX / 2, QColor(120, 95, 20, 170))
         p.setPen(QColor("#3a3320"))
         p.setFont(QFont("Segoe Print", 9 if self.small else 11))
-        p.drawText(rect.adjusted(10, 18, -10, -8), Qt.AlignCenter | Qt.TextWordWrap, self.text)
+        p.drawText(rect.adjusted(10, FAIXA_PX + 4, -10, -8), Qt.AlignCenter | Qt.TextWordWrap, self.text)
         self.desenhar_x(p)
         p.end()

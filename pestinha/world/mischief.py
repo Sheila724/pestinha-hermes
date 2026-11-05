@@ -3,7 +3,8 @@ MISCHIEF - memes, fotos e bilhetes que o pet espalha pela tela.
 
 Regras fixas (não dependem do cérebro):
     - só com permissão, fora de tela cheia e abaixo do limite de objetos
-    - um clique em qualquer lugar do objeto fecha ele (sempre)
+    - um clique no objeto fecha ele e deixa o pet bravo (sempre); o × fecha numa boa
+    - arrasta-se pela barra de cima, como uma janela; com o Hermes, clique duplo responde
     - nada nasce em cima do cursor
 O cérebro só decide QUANDO e com que emoção; aqui se decide a FORMA.
 """
@@ -27,7 +28,7 @@ class MischiefEngine(QObject):
 
     dismissed = Signal(object, float)     # (objeto, segundos que ficou na tela)
     fechado = Signal(object, float)       # fechado pelo ×: some sem frustração (ele aprende, mas não fica bravo)
-    fala_clicada = Signal(str)            # clicaram num post-it do Hermes: o texto dele, para responder
+    fala_clicada = Signal(str)            # clique duplo num post-it: o texto dele, para responder
 
     def __init__(self, conteudo):
         """Guarda os objetos na tela (memes, bilhetes, fotos) e o conteúdo do pet para sorteá-los."""
@@ -37,6 +38,7 @@ class MischiefEngine(QObject):
         self.notes = config.Notes(conteudo.notes)
         self.notes_sad = config.Notes(conteudo.notes_sad)       # bilhetes de quando ele está triste
         self._notas_contexto = {}                               # atividade -> Notes (recadinhos_<nome>.txt)
+        self.pode_responder = False                             # com o Hermes ligado, clique duplo responde
 
     def notas_de(self, atividade):
         """Recadinhos próprios do programa aberto (e-mail, navegador...), ou None se não houver."""
@@ -162,12 +164,15 @@ class MischiefEngine(QObject):
     def mostrar_fala(self, texto, x, y, bounds, origem=None):
         """
         Post-it com uma fala (do Hermes) perto de (x, y), dentro da tela. Se vier `origem` (o pet), ele sai
-        de lá voando até o lugar. Clicar responde; o × fecha; dá para arrastar.
+        de lá voando até o lugar. Clique duplo responde; clique ou × fecham (sem deixar o pet bravo: a fala
+        é do Hermes, não travessura); arrasta-se pela barra de cima.
         """
         thing = NoteThing(texto, size=NOTE_SIZE_FALA if len(texto) > 60 else None)
-        thing.setToolTip("clique para responder · arraste para mover · × para fechar")
-        thing.clicked.connect(self._on_fala_click)
+        thing.setToolTip("clique duplo responde · clique ou × fecham · arraste pela barra de cima")
+        thing.aceita_duplo = True
+        thing.clicked.connect(self._remove)
         thing.fechar.connect(self._remove)
+        thing.responder.connect(self._on_responder)
         left, top, right, bottom = bounds
         hw, hh = thing.width() / 2, thing.height() / 2
         thing.place(min(max(x, left + hw), right - hw), min(max(y, top + hh), bottom - hh))
@@ -216,8 +221,16 @@ class MischiefEngine(QObject):
             thing.setVisible(visible)
 
     def _ligar_travessura(self, thing):
-        """Travessura: dá para arrastar à vontade; só o × fecha (e fechar não deixa o pet frustrado)."""
+        """Travessura: clique fecha (ele fica bravo), × fecha numa boa, clique duplo responde (com o Hermes)."""
+        thing.clicked.connect(self._on_click)
         thing.fechar.connect(self._on_fechar)
+        if self.pode_responder:
+            thing.aceita_duplo = True
+            thing.responder.connect(self._on_responder)
+            thing.setToolTip("clique fecha (ele não gosta) · × fecha numa boa · clique duplo responde · "
+                             "arraste pela barra de cima")
+        else:
+            thing.setToolTip("clique fecha (ele não gosta) · × fecha numa boa · arraste pela barra de cima")
 
     def _on_fechar(self, thing):
         """Fechou pelo ×: ele some e o tempo até fechar vai para o aprendizado, sem virar frustração."""
@@ -226,15 +239,15 @@ class MischiefEngine(QObject):
         self.fechado.emit(thing, elapsed)
 
     def _on_click(self, thing):
-        """Clicaram no objeto: ele some e o tempo até o clique é registrado."""
+        """Clicaram no objeto: ele some e o tempo até o clique vira frustração e aprendizado."""
         elapsed = time.monotonic() - thing.born
         self._remove(thing)
         self.dismissed.emit(thing, elapsed)
 
-    def _on_fala_click(self, thing):
-        """Clicaram numa fala do Hermes: some e avisa o app (para responder), sem contar como travessura dispensada."""
+    def _on_responder(self, thing):
+        """Clique duplo: some e avisa o app para abrir a conversa respondendo a ele (não conta como dispensa)."""
         self._remove(thing)
-        self.fala_clicada.emit(thing.text)
+        self.fala_clicada.emit(getattr(thing, "text", ""))
 
     def _remove(self, thing):
         """Tira um objeto da tela e da lista."""

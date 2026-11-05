@@ -642,6 +642,7 @@ def test_sem_hermes_sem_diario(tmp_path):
 
 from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
+from PySide6.QtWidgets import QApplication  # noqa: E402
 
 
 def test_balao_envia_com_enter_e_fecha(tmp_path):
@@ -679,10 +680,16 @@ def test_clicar_na_fala_nao_conta_como_travessura_dispensada(ponte, tmp_path):
         app.mischief.fala_clicada.connect(clicadas.append)
         app.mostrar_fala("Hoje é sexta!")
         nota = app.mischief.things[0]
-        QTest.mouseClick(nota, Qt.LeftButton)
+        QTest.mouseDClick(nota, Qt.LeftButton)
+        QTest.mouseRelease(nota, Qt.LeftButton)
         assert clicadas == ["Hoje é sexta!"] and dispensadas == [] and not app.mischief.things
         assert app.balao.isVisible() and app.balao.respondendo == "Hoje é sexta!"
         app.balao.hide()
+        app.mostrar_fala("Outra fala")
+        outra = app.mischief.things[0]
+        QTest.mouseClick(outra, Qt.LeftButton)                   # um clique só: fecha, sem raiva
+        QTest.qWait(QApplication.doubleClickInterval() + 80)
+        assert not app.mischief.things and dispensadas == [] and clicadas == ["Hoje é sexta!"]
     finally:
         _fechar(app)
 

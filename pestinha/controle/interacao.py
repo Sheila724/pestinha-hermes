@@ -113,14 +113,20 @@ class InteracaoMixin:
             self.protest_ctl.provoke(quanto)
 
     def on_dismissed(self, thing, elapsed):
-        """Você dispensou uma travessura: ela some, e o tempo até você fechar vira aprendizado (fechar rápido é pior)."""
+        """
+        Você fechou uma travessura com um clique: vira frustração (a raiva sobe; várias seguidas, drama) e o tempo
+        até você fechar vira aprendizado (fechar rápido é pior). Ele bufa, para você ver que não gostou.
+        """
         if self._congelado():
             return                                   # o objeto some, mas não vira aprendizado na pausa
-        self.mischief_ctl.on_dismissed(thing, elapsed, self.prof, time.monotonic())
+        agora = time.monotonic()
+        self.mischief_ctl.on_dismissed(thing, elapsed, self.prof, agora)
+        if getattr(self, "palco", None) is not None:
+            self.palco.iniciar("bufo", agora)
         self.contar_no_diario("dispensadas")
 
     def on_fechado(self, thing, elapsed):
-        """Você fechou uma travessura pelo ×: ele aprende que você não quis, sem ficar frustrado (nem tremer)."""
+        """Você fechou uma travessura pelo ×: ele aprende que você não quis, sem ficar bravo (nem tremer)."""
         if self._congelado():
             return
         self.mischief_ctl.on_fechado(thing, elapsed, self.prof, time.monotonic())
