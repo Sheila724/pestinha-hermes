@@ -7,83 +7,83 @@ ei.
 chamado aberto
 !!!
 isso vai pro SLA
-anotado no log
+anotado no ticket
 
 [manifestacao]
 MAIS CARINHO
-MENOS ALERTAS
-RESPEITA A JANELA
-NADA DE DEPLOY NA SEXTA
-ETIQUETA OS CABOS
+MENOS CHAMADOS
+MANDA O PRINT
+LÊ O TUTORIAL
+REINICIA PRIMEIRO
 
 [greve]
 EM GREVE
 UPTIME EM GREVE
-DOWNTIME PROGRAMADO
-SERVIÇO INDISPONÍVEL
-503: PET EM GREVE
+SUPORTE FECHADO
+FORA DO HORÁRIO
+FILA PAUSADA
 SEM CARINHO, SEM SLA
-GREVE ATÉ A PRÓXIMA JANELA
+GREVE ATÉ O PRÓXIMO TURNO
 NÃO FURE A GREVE
 
 [revolucao]
 ABAIXO O CURSOR
-CURSOR, ISSO NÃO TÁ NA CHANGE
-NENHUM CLIQUE SEM CHAMADO
-O CURSOR NÃO TEM ACESSO AO RACK
-CURSOR, CADÊ SUA BIOMETRIA?
+CURSOR, ABRE UM CHAMADO
+NENHUM CLIQUE SEM TICKET
+CURSOR SEM PRINT NÃO É ATENDIDO
+CURSOR, JÁ TENTOU REINICIAR?
 DESLIGA O CURSOR E LIGA DE NOVO
-O CURSOR CAIU NO MONITORAMENTO
-CURSOR SEM ETIQUETA NÃO ENTRA
-FIREWALL CONTRA A SETINHA
-REGRA NOVA: DROP NO CURSOR
-SEM ROLLBACK PRO CURSOR
-SALA FRIA, CURSOR FORA
-REBOOT GERAL CONTRA O CURSOR
+CURSOR ESCALADO PRO N2
+O CURSOR ESQUECEU A SENHA
+CURSOR BLOQUEADO POR TENTATIVAS
+CURSOR FORA DO HORÁRIO
+CTRL+F5 NO CURSOR
+LIMPA O CACHE DO CURSOR
+O CURSOR DISSE QUE NÃO MEXEU
 ALT+F4 NÃO É PROCEDIMENTO
-ESTE RACK É MEU
+ESTA FILA É MINHA
 
 [acordo]
 CHAMADO RESOLVIDO
 tá bom, tá bom
-serviço normalizado
+atendimento encerrado
 
 [desistiu]
-...tá. normalizou.
+...tá. resolvido.
 fechei o chamado
 
 # Tristeza: quando ele fica triste ou sozinho por muito tempo
 [saudade]
-ping?
-tem alguém no NOC?
-silêncio no plantão
+alô?
+tem alguém na fila?
+telefone mudo hoje
 
 [chorando]
-tô sem link :(
-me monitora?
+ninguém me atende :(
+me abre um chamado?
 timeout de carinho
 
 [abandonado]
 ...
-host inacessível
-fiquei em standby
+chamado sem resposta
+fiquei em espera
 
 [volto]
-LINK RESTABELECIDO!
-VOLTEI PRO AR!
+ATENDIMENTO RETOMADO!
+VOLTEI PRA FILA!
 
 # Cantinho do castigo: o que ele levanta preso na placa
 [castigo]
-ISSO NÃO TAVA NA CHANGE.
+ISSO NÃO TAVA NO PROCEDIMENTO.
 VOU ABRIR UM CHAMADO.
-EU SÓ QUERIA MONITORAR.
-NÃO FUI EU, FOI O DNS.
-TÔ EM JANELA DE MANUTENÇÃO.
+EU SÓ QUERIA AJUDAR.
+O CLIENTE DISSE QUE NÃO MEXEU.
+TÔ EM ATENDIMENTO.
 
 # Cantinho do castigo, com raiva: xinga (só símbolos e códigos de erro)
 [xingamento]
 @#$%@!!!!
 ERRO 500!!!
 %&#@*!!
-KERNEL PANIC!!!
+TELA AZUL!!!
 #@$%&!!!

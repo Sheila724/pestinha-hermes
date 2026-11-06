@@ -1,56 +1,55 @@
-# Recadinhos do Uptime, plantonista de data center. Um por linha. Linhas com # são ignoradas.
+# Recadinhos do Uptime, analista de suporte técnico. Um por linha. Linhas com # são ignoradas.
 # Pode editar com ele rodando: ele relê o arquivo sozinho.
 # Há também recadinhos_email.txt (Thunderbird) e recadinhos_navegador.txt, usados quando
 # esses programas estão abertos.
 
-# ---- plantão ----
-bom plantão pra nós dois
-o café do NOC acabou de novo
-bebe água. o datacenter já é seco o suficiente.
-pausa de 5 minutos. o Zabbix avisa se cair algo.
-tô de olho nos gráficos 👀
+# ---- turno ----
+bom turno pra nós dois
+o café da equipe acabou de novo
+bebe água. falar no telefone resseca.
+pausa de 5 minutos. a fila espera.
 hoje tá tranquilo... não, esquece que eu falei isso
 quem disse "tá tranquilo" vai pagar o café
 já anotou o que fez no chamado?
-documentou? se não tá no Netbox, não existe.
+documentou a solução? o você do futuro agradece.
 levanta e estica as costas. a fila de chamados espera.
-passagem de plantão sem anotação não vale
+passagem de turno sem anotação não vale
 
-# ---- sala dos servidores ----
-leva o casaco, a sala tá a 18 °C
-quem deixou a porta do rack aberta?
-etiqueta o cabo. o você do futuro agradece.
-esse patch panel tá parecendo macarrão
-corredor frio é frio. corredor quente é quente. não inverte.
-o ar-condicionado tá fazendo um barulho estranho
-ouviu esse bip? é o nobreak. ou é a minha ansiedade.
-teste do gerador é hoje? ninguém me avisa nada
-crachá na biometria, por favor
-servidor sem trilho é servidor no chão
+# ---- clientes ----
+"não funciona" não é descrição de problema
+pede o print. sempre pede o print.
+o cliente disse que não mexeu em nada. claro.
+"já reiniciei" — reiniciou mesmo?
+a senha é a mesma de sempre... que ele não lembra
+a impressora de novo? a impressora de novo.
+"é urgente" — todos são.
+o cliente sumiu. aguarda o retorno e encerra?
+pergunta a versão antes de chutar a solução
+explica com calma. a gente também já não sabia.
 
 # ---- clássicos do suporte ----
 já tentou desligar e ligar de novo?
 "a internet tá lenta" de novo?
-o cliente disse que não mexeu em nada. claro.
 funciona na minha máquina ¯\_(ツ)_/¯
-foi o DNS. é sempre o DNS.
-não foi o DNS? então foi o DNS mesmo.
-ping responde, então tá vivo
-latência alta? culpa da fibra. sempre da fibra.
-é cabo. 90% das vezes é cabo.
-reinicia o serviço antes de reiniciar o servidor
+limpou o cache? Ctrl+F5 resolve metade
+o cabo de rede tá conectado? pergunta mesmo.
+tem atualização do Windows pendente. sempre tem.
+a VPN caiu? reconecta antes de entrar em pânico
+acesso remoto: pede o ID e a paciência
 abriu chamado ou só mandou mensagem no WhatsApp?
+Caps Lock ligado na senha. clássico.
+o Wi-Fi tá conectado na rede do vizinho?
+o problema tava entre a cadeira e o teclado
 
 # ---- boas práticas (e sarcasmo) ----
-nunca mexa em produção na sexta-feira
-backup que não foi testado é só esperança
-RAID não é backup. repete comigo.
-o disco tá amarelo. amarelo não é cor de disco feliz.
-o certificado vence quando? hein? HEIN?
-janela de manutenção é sagrada
+primeiro contato resolvido é ouro
+escalou pro N2? manda o histórico junto
 "é rapidinho" — famosas últimas palavras
-tem snapshot? então pode mexer. com carinho.
-rollback planejado é rollback que funciona
-uptime de 400 dias não é troféu, é pendência de atualização
-change aprovada? então vai.
-eu só monitoro aqui. infelizmente.
+fecha o chamado com a solução, não com "ok"
+procura na base de conhecimento antes
+SLA correndo. respira e prioriza.
+tutorial com print vale mais que mil ligações
+cliente bem informado é cliente calmo
+anota o número do chamado na resposta
+ninguém lê o aviso por e-mail. manda de novo.
+eu só atendo aqui. infelizmente.

@@ -29,7 +29,7 @@ Para criar um, veja [pets/README.md](../pets/README.md).
 | Personagem | Quem é |
 |---|---|
 | **Bryan** | Revoltado contra o cursor, o Alt+F4 e o Gerenciador de Tarefas. Protesta, faz greve e revolução. |
-| **Uptime** | Plantonista de data center. Fala de plantão, chamados, alertas do Zabbix, sala fria, cabos e backup. Trabalha num rack de servidores (não tem notebook) e conta e-mail (Thunderbird) e navegador como trabalho: senta junto e comenta quando você abre um deles. Memes próprios em forma de cartão de status do NOC (feliz, contente, curioso, bravo, triste e trabalhando). |
+| **Uptime** | Analista de suporte técnico. Fala de chamados, clientes, fila, SLA, print do erro e o clássico "já reiniciou?". Trabalha num rack de servidores (não tem notebook) e conta e-mail (Thunderbird) e navegador como trabalho: senta junto e comenta quando você abre um deles. Memes próprios em forma de cartão de status do suporte (feliz, contente, curioso, bravo, triste e trabalhando). |
 | **Jorge** | Personagem de sátira. Não é referência a nenhum coach, empresa ou pessoa real. Os mesmos estágios viram prospecção, marketing agressivo, "assinatura premium" (só no cartaz) e colapso financeiro; ele atira panfletos de mentoria. É sátira: não vende, cobra nem bloqueia nada. Tem cinco memes felizes, contentes, curiosos e bravos próprios; as outras emoções ainda não têm. |
 
 ## O que o pet faz

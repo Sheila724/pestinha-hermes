@@ -1,21 +1,21 @@
 # Recadinhos do Uptime quando o e-mail (Thunderbird) está aberto. Um por linha. # é comentário.
 # Aparecem logo que você abre o e-mail (no máximo um a cada 20 min) e às vezes no meio do dia.
 
-mais um e-mail do Zabbix?
+mais um e-mail de cliente?
 caixa de entrada zero é lenda urbana
-50 alertas iguais. é um problema só, prometo.
+10 e-mails sobre o mesmo problema. é um chamado só.
 esse e-mail podia ter sido um chamado
 respondeu com cópia pro gestor? estratégico.
 "conforme e-mail anterior..." 😬
-alerta resolvido também é e-mail. respira.
 não esquece de anexar o print
 o cliente respondeu "ok". só "ok".
-janela de manutenção comunicada? manda o aviso.
 leu o e-mail inteiro ou só o assunto?
 "urgente" no assunto não é prioridade no SLA
 filtro no Thunderbird salva vidas
-o fornecedor da fibra ainda não respondeu?
-marca como lido não resolve o alerta
-e-mail de backup com falha não se ignora
-o relatório de disponibilidade saiu?
+o cliente ainda não respondeu? lembrete gentil.
+marcar como lido não resolve o chamado
 cuidado com o "responder a todos"
+mandou o passo a passo? com print?
+"segue em anexo" e cadê o anexo?
+número do chamado no assunto, por favor
+pediu retorno por telefone. por e-mail.
