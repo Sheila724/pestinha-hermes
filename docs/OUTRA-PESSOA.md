@@ -59,7 +59,7 @@ PONTE_TOKEN=$(openssl rand -hex 32)
 HERMES_URL=http://127.0.0.1:8643
 HERMES_API_KEY=$CHAVE
 PONTE_BANCO=/home/sheila/.config/pestinha/pestinha2.db
-PONTE_DONO=NOME
+PONTE_DONO="NOME"
 PONTE_JEITO=zoeiro
 HERMES_TIMEOUT=120
 EOF
@@ -125,7 +125,7 @@ todo mundo, com o mesmo token. O que muda é o `.env` da ponte:
 
 ```bash
 PONTE_EQUIPE=1
-PONTE_DONO=equipe do suporte
+PONTE_DONO="equipe do suporte"
 PONTE_JEITO=suporte
 ```
 
