@@ -100,13 +100,18 @@ ele não deve saber nada.
 
 ## 7. O pet dela
 
-1. Mande o executável (o instalador ou o .exe das Actions). Não mande a sua pasta do pet: ela tem a sua
-   `memory/`, com o seu `hermes.json`.
-2. Pegue o token dela com `grep '^PONTE_TOKEN=' ~/.config/pestinha/pestinha2.env` e mande por um canal
-   privado.
-3. No computador dela, o `memory/hermes.json` (como em [HERMES.md](HERMES.md)), com o endereço dela:
-   `{"url": "https://pestinha2.gapsaa.com.br", "token": "<token dela>"}`
-4. Ela escolhe a cidade dela no menu do pet.
+1. Mande o executável em **zip** (o das Actions, sem abrir no seu computador antes). Não mande a sua
+   memória: no Windows ela fica em `%LOCALAPPDATA%\Pestinha`, com o seu `hermes.json`.
+2. Pegue o token dela com `grep '^PONTE_TOKEN=' ~/.config/pestinha/pestinha2.env | cut -d= -f2` e mande
+   por um canal privado, junto com o endereço `https://pestinha2.gapsaa.com.br`.
+3. Ela abre o pet, clica com o botão direito → **Conectar ao Hermes...**, cola o endereço e o token e clica
+   em **Conectar**. O pet testa na hora e avisa se algo estiver errado.
+4. Ela escolhe a cidade dela no menu (**Minha cidade e horários...**).
+
+Sem a versão com esse menu, dá para deixar a pasta pronta antes de mandar: crie uma pasta `memory` ao lado
+do `Pestinha.exe` com o `hermes.json` dentro:
+`{"url": "https://pestinha2.gapsaa.com.br", "token": "<token dela>"}`. Com uma `memory/` ao lado, o pet
+usa ela em vez do `%LOCALAPPDATA%`.
 
 ## Manutenção
 

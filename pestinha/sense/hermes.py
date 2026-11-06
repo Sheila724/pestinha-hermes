@@ -4,7 +4,7 @@ Ouvido do Pestinha para o Hermes Agent, que mora numa VPS atrás da ponte (pasta
 Sem Qt: a rede roda em threads próprias e o app só recolhe o que chegou com `coletar()`, num relógio
 do Qt. Assim uma VPS lenta ou fora do ar nunca trava o pet.
 
-Configuração em memory/hermes.json (fica fora do Git):
+Configuração em memory/hermes.json (fica fora do Git), escrita pelo menu "Conectar ao Hermes..." ou à mão:
     {"url": "https://pestinha.exemplo.com.br", "token": "<PONTE_TOKEN>"}
 Sem esse arquivo, o Hermes fica desligado e o pet funciona como sempre.
 """
@@ -56,6 +56,55 @@ def carregar_config(caminho, avisar=None):
             avisar(f"[hermes] {caminho.name} precisa de \"url\" (https://...) e \"token\"; Hermes desligado")
         return None
     return {"url": url, "token": token}
+
+
+TIMEOUT_TESTE = 10.0
+
+
+def normalizar(url, token):
+    """
+    Limpa o que a pessoa colou: endereço sem "https://" ganha um, barra no fim sai; token sem espaços,
+    sem aspas e sem o "PONTE_TOKEN=" de quem copiou a linha inteira do .env.
+    """
+    url = "".join(str(url).split()).rstrip("/")
+    if url and not url.startswith(("https://", "http://")):
+        url = "https://" + url
+    token = "".join(str(token).split()).strip("\"'")
+    if token.upper().startswith("PONTE_TOKEN="):
+        token = token.split("=", 1)[1]
+    return url, token
+
+
+def testar_conexao(url, token, timeout=TIMEOUT_TESTE):
+    """(True, "") se a ponte respondeu e aceitou o token; senão (False, o que dizer para a pessoa)."""
+    if not url.startswith(("https://", "http://")) or "." not in url and "localhost" not in url:
+        return False, "Esse endereço não parece certo. Exemplo: https://pestinha.seudominio.com.br"
+    if len(token) < 32:
+        return False, "Esse token está curto demais. Cole o token inteiro."
+    req = urllib.request.Request(url + "/api/eventos?desde=0")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("User-Agent", "Pestinha")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            dados = json.loads(resp.read().decode("utf-8"))
+        if not isinstance(dados, dict) or "eventos" not in dados:
+            return False, "Esse endereço respondeu, mas não parece ser a ponte do Pestinha."
+        return True, ""
+    except urllib.error.HTTPError as erro:
+        if erro.code in (401, 403):
+            return False, "A ponte não aceitou esse token. Confira se colou inteiro."
+        if erro.code == 404:
+            return False, "Esse endereço não parece ser a ponte do Pestinha."
+        return False, f"A ponte respondeu com erro {erro.code}. Tente de novo daqui a pouco."
+    except (OSError, urllib.error.URLError, ValueError):
+        return False, "Não consegui chegar nesse endereço. Confira o endereço e a internet."
+
+
+def salvar_config(caminho, url, token):
+    """Grava memory/hermes.json (UTF-8 sem BOM)."""
+    caminho = Path(caminho)
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    caminho.write_text(json.dumps({"url": url, "token": token}, indent=2), encoding="utf-8")
 
 
 class ClienteHermes:

@@ -229,24 +229,12 @@ class PestinhaApp(VivoMixin, SessaoMixin, InteracaoMixin, QObject):
         self._timer(500, self.sense)
         self._timer(SAVE_EVERY_MS, self.save)
 
-        # ----- Hermes (cérebro na VPS): só liga se existir memory/hermes.json -----
-        self.hermes = hermes.ClienteHermes.de_arquivo(self.paths.hermes, self.paths.hermes_ultimo, avisar=log)
-        self.diario = DiarioDoDia(self.paths.diario_hoje) if self.hermes else None
+        # ----- Hermes (cérebro na VPS): liga se existir memory/hermes.json (ou depois, pelo menu) -----
+        self.hermes = self.diario = None
         self._diario_amostra = self._diario_envio = time.monotonic()
         self.balao = self.atalho_conversa = self.palco = None
         self.agenda = []
-        if self.hermes:
-            self.balao = BalaoDeConversa(self.nome)
-            self.balao.enviado.connect(self.enviar_ao_hermes)
-            self.pet.conversar.connect(self.abrir_conversa)
-            self.mischief.fala_clicada.connect(self.abrir_conversa)
-            self.mischief.pode_responder = True
-            self.atalho_conversa = ConversaHotkey()
-            self.atalho_conversa.pressed.connect(self.abrir_conversa)
-            self._iniciar_vivo()
-            self.hermes.iniciar()
-            self._timer(HERMES_MS, self.receber_hermes)
-            log(f"[hermes] ligado: {self.hermes.url}")
+        self.ligar_hermes()
 
         self._apply_settings()
         self.sense()
@@ -267,6 +255,34 @@ class PestinhaApp(VivoMixin, SessaoMixin, InteracaoMixin, QObject):
                 self.nome, f"Estou aqui. Pânico: {config.PANIC_HOTKEY_TEXT}",
                 QSystemTrayIcon.Information, 3000,
             )
+
+    def ligar_hermes(self):
+        """
+        Liga o cérebro na VPS com o memory/hermes.json: na abertura e depois do menu "Conectar ao Hermes...".
+        Já ligado, troca só o cliente (endereço e token novos); balão, palco e relógio são criados uma vez.
+        Devolve True se ligou.
+        """
+        cliente = hermes.ClienteHermes.de_arquivo(self.paths.hermes, self.paths.hermes_ultimo, avisar=log)
+        if cliente is None:
+            return False
+        if self.hermes:
+            self.hermes.parar()
+        self.hermes = cliente
+        if self.diario is None:
+            self.diario = DiarioDoDia(self.paths.diario_hoje)
+        if self.balao is None:
+            self.balao = BalaoDeConversa(self.nome)
+            self.balao.enviado.connect(self.enviar_ao_hermes)
+            self.pet.conversar.connect(self.abrir_conversa)
+            self.mischief.fala_clicada.connect(self.abrir_conversa)
+            self.mischief.pode_responder = True
+            self.atalho_conversa = ConversaHotkey()
+            self.atalho_conversa.pressed.connect(self.abrir_conversa)
+            self._iniciar_vivo()
+            self._timer(HERMES_MS, self.receber_hermes)
+        self.hermes.iniciar()
+        log(f"[hermes] ligado: {self.hermes.url}")
+        return True
 
     def anotar_diario(self, forcar_envio=False):
         """Amostra o estado para o diário do dia e, de tempos em tempos, manda o resumo para a ponte."""

@@ -9,7 +9,9 @@ Pestinha (PC) ── HTTPS, polling a cada 5 s ──► ponte (VPS) ──► H
 
 ## Ligar no computador
 
-Crie `memory/hermes.json` (a pasta `memory/` nunca vai para o Git):
+O jeito mais fácil: botão direito no pet → **Conectar ao Hermes...**, cole o endereço da ponte e o token
+e clique em **Conectar** (ele testa antes de gravar e liga na hora, sem reabrir). Ou, à mão,
+crie `memory/hermes.json` (a pasta `memory/` nunca vai para o Git):
 
 ```json
 {"url": "https://pestinha.exemplo.com.br", "token": "<PONTE_TOKEN da VPS>"}

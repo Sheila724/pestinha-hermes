@@ -10,8 +10,10 @@ Mixin de PestinhaApp: usa os atributos criados em PestinhaApp.__init__.
 from ..log import log
 import time
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QInputDialog, QMenu, QMessageBox
+from PySide6.QtWidgets import QDialog, QInputDialog, QMenu, QMessageBox
 from ..body.pet import cursor_pos
+from ..sense import hermes as hermes_rede
+from ..ui.conexao import ConexaoHermesDialog
 from ..ajustes import (
     INSATISFACAO_NOTEBOOK,
     ARREMESSOS_TOLERADOS,
@@ -168,6 +170,8 @@ class InteracaoMixin:
             item("Começar conversa nova", self.hermes.esquecer_conversa)
             item("Minha cidade e horários...", self.menu_cidade_hermes)
             item("Ler meu diário...", self.hermes.ler_diario)
+        item("Conexão com o Hermes..." if getattr(self, "hermes", None) else "Conectar ao Hermes...",
+             self.menu_conectar_hermes)
         menu.addSeparator()
         item("Cantinho do castigo", lambda: self.castigo.toggle(self.bounds()))
         item("Painel de protesto", lambda: self.floats.toggle("greve"))
@@ -181,6 +185,28 @@ class InteracaoMixin:
     def menu_perguntar_hermes(self):
         """Menu: abre o balão de conversa (o mesmo do clique duplo e do Ctrl+Alt+P)."""
         self.abrir_conversa()
+
+    def menu_conectar_hermes(self):
+        """Menu: cola o endereço da ponte e o token; testa, grava o memory/hermes.json e liga na hora."""
+        atual = hermes_rede.carregar_config(self.paths.hermes) or {}
+        janela = ConexaoHermesDialog(self.nome, atual.get("url", ""), hermes_rede.testar_conexao,
+                                     hermes_rede.normalizar)
+        if janela.exec() != QDialog.Accepted:
+            return
+        if janela.url != atual.get("url"):
+            try:
+                self.paths.hermes_ultimo.unlink()          # outra ponte: começa a fila dela do zero
+            except OSError:
+                pass
+        try:
+            hermes_rede.salvar_config(self.paths.hermes, janela.url, janela.token)
+        except OSError as erro:
+            QMessageBox.warning(None, self.nome, f"Não consegui gravar a configuração: {erro}")
+            return
+        primeira_vez = not getattr(self, "hermes", None)
+        if self.ligar_hermes():
+            self.mostrar_fala("Conectado! Agora a gente conversa. Me conta sua cidade no menu?" if primeira_vez
+                              else "Conexão trocada!")
 
     def menu_cidade_hermes(self):
         """Menu: cidade e horários de entrada e saída, para ele comentar o clima, a sexta-feira e os feriados."""
