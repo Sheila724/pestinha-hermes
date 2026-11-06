@@ -120,16 +120,18 @@ class Lembretes:
         self._db.execute("CREATE TABLE IF NOT EXISTS lembretes ("
                          " id INTEGER PRIMARY KEY AUTOINCREMENT, quando REAL NOT NULL,"
                          " texto TEXT NOT NULL, criado REAL NOT NULL)")
+        if "quem" not in [c[1] for c in self._db.execute("PRAGMA table_info(lembretes)")]:
+            self._db.execute("ALTER TABLE lembretes ADD COLUMN quem TEXT NOT NULL DEFAULT ''")
         self._db.commit()
 
-    def criar(self, alvo, texto):
+    def criar(self, alvo, texto, quem=""):
         """Guarda e devolve o id, ou None se já tem lembretes demais."""
         with self._lock:
             n = self._db.execute("SELECT COUNT(*) FROM lembretes").fetchone()[0]
             if n >= MAX_PENDENTES:
                 return None
-            cur = self._db.execute("INSERT INTO lembretes (quando, texto, criado) VALUES (?, ?, ?)",
-                                   (alvo.timestamp(), str(texto)[:MAX_TEXTO], self._relogio()))
+            cur = self._db.execute("INSERT INTO lembretes (quando, texto, criado, quem) VALUES (?, ?, ?, ?)",
+                                   (alvo.timestamp(), str(texto)[:MAX_TEXTO], self._relogio(), quem))
             self._db.commit()
             return cur.lastrowid
 
@@ -140,21 +142,21 @@ class Lembretes:
             return cur.rowcount == 1
 
     def pendentes(self):
-        """[{"id", "quando" (epoch), "texto"}], o mais próximo primeiro."""
+        """[{"id", "quando" (epoch), "texto", "quem"}], o mais próximo primeiro."""
         with self._lock:
-            linhas = self._db.execute("SELECT id, quando, texto FROM lembretes ORDER BY quando, id").fetchall()
-        return [{"id": i, "quando": q, "texto": t} for i, q, t in linhas]
+            linhas = self._db.execute("SELECT id, quando, texto, quem FROM lembretes ORDER BY quando, id").fetchall()
+        return [{"id": i, "quando": q, "texto": t, "quem": w} for i, q, t, w in linhas]
 
     def vencidos(self):
         """Tira da tabela e devolve os que já passaram da hora (cada um sai uma vez só)."""
         agora = self._relogio()
         with self._lock:
-            linhas = self._db.execute("SELECT id, quando, texto FROM lembretes WHERE quando <= ? ORDER BY quando, id",
-                                      (agora,)).fetchall()
+            linhas = self._db.execute("SELECT id, quando, texto, quem FROM lembretes WHERE quando <= ? "
+                                      "ORDER BY quando, id", (agora,)).fetchall()
             if linhas:
-                self._db.executemany("DELETE FROM lembretes WHERE id = ?", [(i,) for i, _q, _t in linhas])
+                self._db.executemany("DELETE FROM lembretes WHERE id = ?", [(i,) for i, *_ in linhas])
                 self._db.commit()
-        return [{"id": i, "quando": q, "texto": t} for i, q, t in linhas]
+        return [{"id": i, "quando": q, "texto": t, "quem": w} for i, q, t, w in linhas]
 
     def contexto(self, fuso):
         """Linha "[Lembretes marcados: #3 hoje 11:06 ligar...]" para o Hermes, ou "" sem nenhum."""
@@ -164,7 +166,7 @@ class Lembretes:
         z = ZoneInfo(fuso)
         agora = dt.datetime.fromtimestamp(self._relogio(), z)
         partes = [f"#{r['id']} {descrever_horario(dt.datetime.fromtimestamp(r['quando'], z), agora)} {r['texto']}"
-                  for r in lista[:10]]
+                  + (f" (pedido por {r['quem']})" if r.get("quem") else "") for r in lista[:10]]
         return "[Lembretes marcados: " + "; ".join(partes) + "]"
 
 
@@ -172,5 +174,7 @@ def fala_do_lembrete(lembrete, fuso, agora_epoch, sorteio=random.choice):
     """O texto do post-it na hora do lembrete (com a hora combinada se ele chegou atrasado)."""
     if agora_epoch - lembrete["quando"] > ATRASADO_S:
         hora = dt.datetime.fromtimestamp(lembrete["quando"], ZoneInfo(fuso)).strftime("%H:%M")
-        return sorteio(FALAS_ATRASADO).format(hora=hora, texto=lembrete["texto"])
-    return sorteio(FALAS).format(texto=lembrete["texto"])
+        fala = sorteio(FALAS_ATRASADO).format(hora=hora, texto=lembrete["texto"])
+    else:
+        fala = sorteio(FALAS).format(texto=lembrete["texto"])
+    return f"{fala} (pedido por {lembrete['quem']})" if lembrete.get("quem") else fala

@@ -8,11 +8,13 @@ Configuração em memory/hermes.json (fica fora do Git):
     {"url": "https://pestinha.exemplo.com.br", "token": "<PONTE_TOKEN>"}
 Sem esse arquivo, o Hermes fica desligado e o pet funciona como sempre.
 """
+import getpass
 import json
 import queue
 import threading
 import urllib.error
 import urllib.request
+import uuid
 from pathlib import Path
 
 INTERVALO = 5.0             # segundos entre consultas, com tudo bem
@@ -32,6 +34,32 @@ def formatar_data(iso):
     """'2026-11-04' -> '04/11/2026' (o resto passa como veio)."""
     partes = str(iso).split("-")
     return "/".join(reversed(partes)) if len(partes) == 3 else str(iso)
+
+
+def id_do_computador(caminho):
+    """Id aleatório e fixo deste computador (criado na primeira vez). Não diz nada sobre a máquina."""
+    caminho = Path(caminho)
+    try:
+        atual = caminho.read_text(encoding="utf-8").strip()
+        if len(atual) == 32 and all(c in "0123456789abcdef" for c in atual):
+            return atual
+    except OSError:
+        pass
+    novo = uuid.uuid4().hex
+    try:
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        caminho.write_text(novo, encoding="utf-8")
+    except OSError:
+        pass                                # sem disco: vale só nesta sessão
+    return novo
+
+
+def usuario():
+    """Usuário do sistema (no pet da equipe, o Hermes chama cada um pelo nome)."""
+    try:
+        return getpass.getuser()[:40]
+    except Exception:                       # noqa: BLE001 - sem usuário no ambiente: segue sem nome
+        return ""
 
 
 def carregar_config(caminho, avisar=None):
@@ -61,10 +89,12 @@ def carregar_config(caminho, avisar=None):
 class ClienteHermes:
     """Consulta a fila de eventos da ponte e faz perguntas, sempre fora da thread do Qt."""
 
-    def __init__(self, url, token, arquivo_ultimo, intervalo=INTERVALO):
+    def __init__(self, url, token, arquivo_ultimo, intervalo=INTERVALO, arquivo_cliente=None):
         self.url = url.rstrip("/")
         self._token = token
         self._arquivo_ultimo = Path(arquivo_ultimo)
+        self._cliente = id_do_computador(arquivo_cliente or Path(arquivo_ultimo).with_name("hermes_cliente.txt"))
+        self._quem = usuario()
         self._intervalo = intervalo
         self._chegou = queue.Queue()
         self._parar = threading.Event()
@@ -184,6 +214,9 @@ class ClienteHermes:
         req = urllib.request.Request(self.url + caminho, data=dados, method="POST" if dados else "GET")
         req.add_header("Authorization", f"Bearer {self._token}")
         req.add_header("User-Agent", "Pestinha")
+        req.add_header("X-Pestinha-Cliente", self._cliente)
+        if self._quem:
+            req.add_header("X-Pestinha-Quem", self._quem.encode("ascii", "replace").decode("ascii"))
         if dados:
             req.add_header("Content-Type", "application/json")
         with urllib.request.urlopen(req, timeout=timeout) as resp:

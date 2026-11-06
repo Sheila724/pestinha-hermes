@@ -268,6 +268,11 @@ class Paths:
         return self.memory / "diario_hoje.json"
 
     @property
+    def hermes_cliente(self):
+        """Id aleatório deste computador para a ponte (no pet da equipe, separa a conversa e o diário de cada um)."""
+        return self.memory / "hermes_cliente.txt"
+
+    @property
     def hermes_ultimo(self):
         """Último evento do Hermes já mostrado (para não repetir nem perder falas ao reabrir)."""
         return self.memory / "hermes_ultimo.txt"
