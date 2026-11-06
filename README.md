@@ -28,6 +28,8 @@ corporativa e sem VPN.
 - **Animações.** Nuvem de pensamento estilo HQ enquanto o agente pensa, "!" quando chega fala, post-its que
   saem voando de trás dele, guarda-chuva, óculos escuros, cachecol, chapéu de festa e confete conforme o tempo
   e o calendário, estrela quando obedece, bufo quando é contrariado.
+- **Visitas.** Os pets de pessoas diferentes se visitam: o seu sai de casa, aparece na tela da outra pessoa,
+  cumprimenta, brinca um minuto e volta contando como foi.
 - **Post-its como janelas.** Arrastam pela barra de cima e fecham no ×. Um clique numa travessura também fecha,
   mas deixa o pet bravo; o × fecha numa boa.
 

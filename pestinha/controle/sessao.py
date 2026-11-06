@@ -37,6 +37,8 @@ class SessaoMixin:
         st.show_label = self.perms["modo_teste"] and self.perms["mostrar_emocao"]
         st.allow_drag = self.perms["arrastar"]
         st.allow_poke = self.perms["cutucar"]
+        if getattr(self, "hermes", None):
+            self.hermes.recebe_visitas = self.perms["visitas"]
         self._atualizar_parada()
         self.update_visibility()
 
@@ -56,9 +58,10 @@ class SessaoMixin:
             and not self.hidden
             and (not self.fullscreen or self.perms["tela_cheia"])
         )
-        if visible != self.pet.isVisible():
-            self.pet.setVisible(visible)
-            if not visible:
+        pet_visivel = visible and not getattr(self, "fora_de_casa", None)    # saiu para visitar alguém
+        if pet_visivel != self.pet.isVisible():
+            self.pet.setVisible(pet_visivel)
+            if not pet_visivel:
                 self.behavior.drop_carried()
                 self.pet.cancel_interaction()        # escondido ou desligado no meio do arraste
                 self.senses.set_dragging(False)
@@ -203,6 +206,7 @@ class SessaoMixin:
                     self.balao.close()
                 if self.palco:
                     self.palco.close()
+                self.fechar_visitas()
             self.mesa.fechar()
             self.festa.fechar()
             self.revolucao.fechar()

@@ -86,6 +86,15 @@ def carregar_config(caminho, avisar=None):
     return {"url": url, "token": token}
 
 
+CAMPOS_VISITA = ("visita", "nome", "pet", "cumprimento", "despedida", "duracao")
+
+
+def _visita_valida(ev):
+    """Evento de visita com tudo o que o pet precisa e nos tipos certos."""
+    return (isinstance(ev.get("visita"), int) and isinstance(ev.get("duracao"), (int, float))
+            and all(isinstance(ev.get(k), str) for k in ("nome", "pet", "cumprimento", "despedida")))
+
+
 class ClienteHermes:
     """Consulta a fila de eventos da ponte e faz perguntas, sempre fora da thread do Qt."""
 
@@ -95,6 +104,8 @@ class ClienteHermes:
         self._arquivo_ultimo = Path(arquivo_ultimo)
         self._cliente = id_do_computador(arquivo_cliente or Path(arquivo_ultimo).with_name("hermes_cliente.txt"))
         self._quem = usuario()
+        self.pet_id = "bryan"           # personagem: quem recebe a visita desenha ele com os arquivos dele
+        self.recebe_visitas = True      # "Receber visitas" das Configurações (o app atualiza)
         self._intervalo = intervalo
         self._chegou = queue.Queue()
         self._parar = threading.Event()
@@ -125,6 +136,9 @@ class ClienteHermes:
           efeito    animação para a fala seguinte                       acao              pedido ao corpo
           info      confirmação local (cidade salva, conversa nova)     diario            páginas do diário
           humor     (ainda sem efeito)
+        Visitas (o segundo item é um dict ou uma lista, não texto):
+          vizinhos  [{"id", "nome", "pet", "recebe"}]                   saiu              {"nome", "fala"}
+          visita    {"visita", "nome", "pet", "cumprimento", "despedida", "duracao"}     voltou   texto
         """
         itens = []
         while True:
@@ -215,6 +229,8 @@ class ClienteHermes:
         req.add_header("Authorization", f"Bearer {self._token}")
         req.add_header("User-Agent", "Pestinha")
         req.add_header("X-Pestinha-Cliente", self._cliente)
+        req.add_header("X-Pestinha-Pet", self.pet_id)
+        req.add_header("X-Pestinha-Visitas", "1" if self.recebe_visitas else "0")
         if self._quem:
             req.add_header("X-Pestinha-Quem", self._quem.encode("ascii", "replace").decode("ascii"))
         if dados:
@@ -241,6 +257,11 @@ class ClienteHermes:
                     self._chegou.put(("humor", str(ev["humor"])))
                 elif ev.get("tipo") == "acao" and ev.get("acao"):
                     self._chegou.put(("acao", str(ev["acao"])))
+                elif ev.get("tipo") in ("visita", "voltou") and ev.get("para") == self._cliente:
+                    if ev["tipo"] == "voltou":
+                        self._chegou.put(("voltou", encurtar(ev.get("texto", ""))))
+                    elif _visita_valida(ev):
+                        self._chegou.put(("visita", {k: ev[k] for k in CAMPOS_VISITA}))
         if primeira_vez or ultimo < self._ultimo:      # 1ª conexão, ou o banco da ponte foi recriado
             novo = ultimo
         else:                                           # vem no máximo 50 por vez: avança só até o último lido
@@ -263,11 +284,54 @@ class ClienteHermes:
             self._chegou.put(("resposta", encurtar(resposta)))
             if dados.get("acao"):
                 self._chegou.put(("acao", str(dados["acao"])))
+            if isinstance(dados.get("visitar"), dict) and dados["visitar"].get("nome"):
+                self._chegou.put(("saiu", {"nome": str(dados["visitar"]["nome"])[:60], "fala": ""}))
         except urllib.error.HTTPError as erro:
             self._chegou.put(("erro", "Meu cérebro não respondeu agora…" if erro.code >= 500
                               else "A VPS não me reconheceu (token?)."))
         except (OSError, urllib.error.URLError, ValueError, KeyError, TypeError):
             self._chegou.put(("erro", "Não consegui falar com a VPS."))
+
+    # ---------- visitas ----------
+
+    def vizinhos(self):
+        """Quem está em casa para visitar; chega em coletar() como ("vizinhos", lista) ou ("info", erro)."""
+        threading.Thread(target=self._vizinhos, name="hermes-vizinhos", daemon=True).start()
+
+    def visitar(self, para):
+        """Vai visitar `para` (id de vizinhos()); chega ("saiu", {"nome", "fala"}) ou ("info", o motivo)."""
+        threading.Thread(target=self._visitar, args=(str(para),), name="hermes-visitar", daemon=True).start()
+
+    def fim_da_visita(self, id_visita, emocao):
+        """Avisa que o visitante foi embora (com a emoção do pet daqui, para ele contar em casa)."""
+        threading.Thread(target=self._erro_silencioso, args=("/api/visita/fim", {"id": int(id_visita),
+                         "emocao": str(emocao)[:20]}), name="hermes-fim-visita", daemon=True).start()
+
+    def _vizinhos(self):
+        try:
+            lista = self._pedido("/api/vizinhos")["vizinhos"]
+            self._chegou.put(("vizinhos", [v for v in lista if isinstance(v, dict) and v.get("id") and v.get("nome")]))
+        except (OSError, urllib.error.URLError, ValueError, KeyError, TypeError):
+            self._chegou.put(("info", "Não consegui olhar quem está em casa agora."))
+
+    def _visitar(self, para):
+        try:
+            dados = self._pedido("/api/visitar", {"para": para}, timeout=TIMEOUT_PERGUNTA)
+            self._chegou.put(("saiu", {"nome": str(dados.get("nome", ""))[:60], "fala": encurtar(dados.get("fala", ""))}))
+        except urllib.error.HTTPError as erro:
+            try:
+                motivo = json.loads(erro.read().decode("utf-8")).get("detail")
+            except (OSError, ValueError, AttributeError):
+                motivo = None
+            self._chegou.put(("info", encurtar(motivo if isinstance(motivo, str) else "Não deu para ir agora.")))
+        except (OSError, urllib.error.URLError, ValueError, KeyError, TypeError):
+            self._chegou.put(("info", "Não consegui falar com a VPS."))
+
+    def _erro_silencioso(self, caminho, corpo):
+        try:
+            self._pedido(caminho, corpo)
+        except (OSError, urllib.error.URLError, ValueError, KeyError, TypeError):
+            pass
 
     def _efeitos(self, nomes):
         """Animações pedidas pela ponte (chuva, calor, frio, festa, diario), antes da fala que elas acompanham."""

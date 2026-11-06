@@ -36,6 +36,8 @@ CONTAGENS = {                     # nome no resumo -> como contar para o Hermes
     "perguntas": "a {dono} me perguntou {n} coisa(s)",
     "obedeceu": "obedeci {n} pedido(s)",
     "recusou": "recusei {n} pedido(s)",
+    "visitas_feitas": "fui visitar {n} vizinho(s)",
+    "visitas_recebidas": "recebi {n} visita(s) de outros pets",
 }
 EMOCOES = ("observando", "contente", "feliz", "curioso", "bravo", "triste", "assustado", "dramatico", "dormindo")
 MAX_PAGINA = 700

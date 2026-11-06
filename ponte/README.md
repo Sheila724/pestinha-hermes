@@ -38,6 +38,10 @@ Falas podem trazer `"efeitos"`: animações que o pet faz junto (`chuva`, `calor
 SQLite, acrescenta "Anotado para HH:MM." e, quando vence, põe a fala na fila com o efeito `lembrete`. Os
 marcados vão para o Hermes numa linha de contexto, para ele listar e cancelar.
 
+**Visitas** (`ponte/vizinhanca.py`): `GET /api/vizinhos` (quem está em casa), `POST /api/visitar {"para"}` e
+`POST /api/visita/fim {"id", "emocao"}`. As pontes da VPS dividem um SQLite (`PONTE_VIZINHANCA`); as chegadas e
+os retornos entram na fila como eventos `visita` e `voltou`, com `"para"` (o computador de destino).
+
 Token: `Authorization: Bearer <PONTE_TOKEN>`. O Hermes nunca fica exposto; a persona
 (`ponte/persona.md`) mantém as respostas curtas, do tamanho de um post-it.
 

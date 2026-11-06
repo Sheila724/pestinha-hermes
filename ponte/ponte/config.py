@@ -22,6 +22,7 @@ class Config:
     dono: str               # como o pet chama a pessoa (persona e diário)
     hermes_timeout: float   # o agente pode demorar: ele pensa e usa ferramentas
     equipe: bool = False    # pet de uma equipe: várias pessoas, cada mensagem diz quem fala
+    vizinhanca: Path | None = None   # SQLite compartilhado entre as pontes da VPS, para as visitas
 
 
 def _ler_persona(caminho):
@@ -70,4 +71,5 @@ def carregar(env=None):
         dono=dono,
         hermes_timeout=float(env.get("HERMES_TIMEOUT", "120")),
         equipe=equipe,
+        vizinhanca=Path(env.get("PONTE_VIZINHANCA") or Path(env.get("PONTE_BANCO", "ponte.db")).parent / "vizinhanca.db"),
     )

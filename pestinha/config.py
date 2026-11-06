@@ -50,6 +50,7 @@ DEFAULT_PERMISSIONS = {
     "mostrar_emocao": False,   # só vale com modo_teste ligado
     "bolinha": True,           # a bolinha para ele brincar
     "fogos": True,             # fogo de artifício quando ele fica feliz de verdade (rede)
+    "visitas": True,           # pets de outras pessoas podem vir brincar na sua tela (com o Hermes ligado)
 }
 
 # (chave, rótulo, descrição) na ordem da tela inicial
@@ -80,6 +81,9 @@ PERMISSION_GROUPS = [
     ("Brincadeira", [
         ("fogos", "Fogos de artifício", "Quando ele fica muito feliz, a alegria da rede pode soltar um fogo."),
         ("bolinha", "Bolinha", "Uma bolinha para ele brincar. Se você levar para longe, ele reage (pode ficar triste, bravo ou ir atrás)."),
+        ("visitas", "Receber visitas",
+         "Pets de outras pessoas podem vir brincar na sua tela por um minuto (só com o Hermes ligado). "
+         "Só passam o personagem, o nome e o que ele fala."),
     ]),
     ("Teste", [
         ("modo_teste", "Modo teste", "Tempos curtos: travessuras e emoções acontecem em segundos."),

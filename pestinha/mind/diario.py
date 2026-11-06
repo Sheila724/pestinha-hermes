@@ -17,7 +17,7 @@ import json
 from pathlib import Path
 
 CONTAGENS = ("cutucadas", "carinhos", "castigos", "fugas", "travessuras", "dispensadas",
-             "cochilos", "protestos", "perguntas", "obedeceu", "recusou")
+             "cochilos", "protestos", "perguntas", "obedeceu", "recusou", "visitas_feitas", "visitas_recebidas")
 MAX_PASSO_S = 30.0          # um intervalo maior (pausa, computador dormindo) não vira minutos de emoção
 
 

@@ -168,6 +168,7 @@ class InteracaoMixin:
             item("Começar conversa nova", self.hermes.esquecer_conversa)
             item("Minha cidade e horários...", self.menu_cidade_hermes)
             item("Ler meu diário...", self.hermes.ler_diario)
+            item("Visitar alguém...", self.menu_visitar, not self._congelado() and not self.fora_de_casa)
         menu.addSeparator()
         item("Cantinho do castigo", lambda: self.castigo.toggle(self.bounds()))
         item("Painel de protesto", lambda: self.floats.toggle("greve"))
