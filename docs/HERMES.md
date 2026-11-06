@@ -66,6 +66,25 @@ despertador e mostra o post-it. Também dá para perguntar **"quais lembretes eu
 - Se o modelo disser que vai lembrar sem marcar, a ponte troca a resposta por um "não entendi para quando".
 - Fuso: o da cidade escolhida no menu (sem cidade, horário de Brasília). Até 30 lembretes marcados.
 
+## Visitas
+
+Os pets de pessoas diferentes que usam pontes na mesma VPS (você, outra pessoa, a equipe) podem se visitar.
+
+- **Ir:** botão direito → **Visitar alguém...** (ou "vai visitar a Talita" no balão). Aparece quem está com o pet
+  aberto agora; você escolhe, ele deixa um post-it avisando e sai de casa (some da tela).
+- **Lá:** o pet dele aparece na tela da outra pessoa, desenhado com o personagem dele, chega pulando,
+  cumprimenta (no jeito dele, pelo Hermes dele), brinca um minuto olhando para o pet da casa, se despede com
+  uma piscadinha e vai embora. Cutucar a visita: "Ei! Eu sou visita, tá?".
+- **Volta:** ele reaparece pulando e conta como foi ("O pet da Talita me recebeu todo feliz"). Se ninguém abrir
+  a porta (a outra pessoa fechou o pet), ele volta dizendo isso.
+- **Não sai** dormindo, de castigo, sentado no notebook, segurado ou com visita em casa.
+- **Receber visitas** nas Configurações (ligado por padrão). Desligado, ninguém vem, e quem tentou fica sabendo.
+- Entra no diário dos dois. Só passam o personagem, o nome e as falas; nada da tela de ninguém.
+
+As pontes conversam por um arquivo SQLite compartilhado (`PONTE_VIZINHANCA`, padrão: `vizinhanca.db` na mesma
+pasta do `PONTE_BANCO`), sem nada novo exposto na internet. Se os bancos das pontes estiverem em pastas
+diferentes, ponha o mesmo `PONTE_VIZINHANCA` no `.env` de todas.
+
 ## Animações
 
 O pet reage com o corpo ao que acontece na conversa (`pestinha/controle/vivo.py`). As peças que ele veste

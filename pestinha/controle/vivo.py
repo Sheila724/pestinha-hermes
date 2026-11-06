@@ -112,6 +112,14 @@ class VivoMixin:
                 self.pedido_do_hermes(texto)
             elif tipo == "diario":
                 self.mostrar_diario(texto)
+            elif tipo == "vizinhos":
+                self.escolher_vizinho(texto)
+            elif tipo == "saiu":
+                self.sair_de_casa(texto, agora)
+            elif tipo == "voltou":
+                self.voltar_para_casa(texto, agora)
+            elif tipo == "visita":
+                self.receber_visita(texto, agora)
             elif tipo == "humor":
                 log(f"[hermes] humor recebido (ainda sem efeito): {texto}")
 

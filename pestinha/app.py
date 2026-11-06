@@ -55,6 +55,7 @@ from .body.pet_state import PetState
 from .body.toy import ToyTracker, bounce_off, push_from_cursor
 from .controle.interacao import InteracaoMixin
 from .controle.sessao import SessaoMixin
+from .controle.visitas import VisitasMixin
 from .controle.vivo import VivoMixin
 from .core.conditioning import Conditioning
 from .core.emotion import PRIORITY, EmotionState
@@ -86,7 +87,7 @@ HERMES_MS = 1_000          # de quanto em quanto tempo o app recolhe o que o Her
 DIARIO_ENVIO_S = 600       # de quanto em quanto tempo o resumo do dia vai para a ponte
 
 
-class PestinhaApp(VivoMixin, SessaoMixin, InteracaoMixin, QObject):
+class PestinhaApp(VisitasMixin, VivoMixin, SessaoMixin, InteracaoMixin, QObject):
     """Aplicativo do pet: junta a rede neural, os sentidos, o corpo, as travessuras e a interface. Um único objeto, criado em main.py."""
     def __init__(self, store, paths=None):
         """Monta tudo na ordem certa: primeiro a memória e o conteúdo do pet, depois a rede, os sentidos, o corpo, a bandeja e os relógios."""
@@ -235,6 +236,7 @@ class PestinhaApp(VivoMixin, SessaoMixin, InteracaoMixin, QObject):
         self._diario_amostra = self._diario_envio = time.monotonic()
         self.balao = self.atalho_conversa = self.palco = None
         self.agenda = []
+        self._iniciar_visitas()
         if self.hermes:
             self.balao = BalaoDeConversa(self.nome)
             self.balao.enviado.connect(self.enviar_ao_hermes)
@@ -244,6 +246,8 @@ class PestinhaApp(VivoMixin, SessaoMixin, InteracaoMixin, QObject):
             self.atalho_conversa = ConversaHotkey()
             self.atalho_conversa.pressed.connect(self.abrir_conversa)
             self._iniciar_vivo()
+            self.hermes.pet_id = pet_id
+            self.hermes.recebe_visitas = self.perms["visitas"]
             self.hermes.iniciar()
             self._timer(HERMES_MS, self.receber_hermes)
             log(f"[hermes] ligado: {self.hermes.url}")
@@ -535,6 +539,7 @@ class PestinhaApp(VivoMixin, SessaoMixin, InteracaoMixin, QObject):
         dt = min(0.05, max(0.0, now - self.last_frame))
         self.last_frame = now
         self.tick_vivo(now)
+        self.tick_visitas(now)
         if not self.pet.isVisible() or self.paused or self.wiping:
             return
 

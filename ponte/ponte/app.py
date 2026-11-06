@@ -6,6 +6,9 @@ Rotas:
   GET  /api/eventos        o pet pergunta "tem algo novo depois do id N?" (polling)
   POST /api/perguntar      você clica no pet, digita, e o Hermes responde (e marca lembretes, se pedir)
   POST /api/conversa/esquecer  começa uma conversa nova (a memória curta some)
+  GET  /api/vizinhos       quem está em casa para visitar (pets de outras pessoas nesta VPS)
+  POST /api/visitar        o pet sai de casa e vai visitar outro (ponte/vizinhanca.py)
+  POST /api/visita/fim     quem recebeu a visita avisa que o visitante foi embora
   GET  /api/perfil         cidade e horários escolhidos (para os avisos do lado de fora)
   POST /api/perfil         escolhe a cidade ("Franca, SP", "Lisboa") e os horários de entrada e saída
   POST /api/dia            o pet manda o resumo do dia dele (emoções e contagens) para o diário
@@ -20,8 +23,10 @@ A ponte escuta só em 127.0.0.1; quem a expõe na internet (com HTTPS) é o Cadd
 import datetime as dt
 import hmac
 import logging
+import random
 import re
 import time
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -30,6 +35,7 @@ from pydantic import BaseModel, Field
 from . import config as config_mod
 from . import acoes, clima, hermes
 from . import lembretes as lemb
+from . import vizinhanca as viz
 from .conversa import Conversa
 from .diario import Diario, limpar_resumo
 from .eventos import Eventos
@@ -37,6 +43,9 @@ from .mundo import FUSO_PADRAO, Mundo
 from .perfil import PADRAO, Perfil, hora_valida
 
 log = logging.getLogger("ponte")
+VISITAR = re.compile(r"\bvisit", re.IGNORECASE)
+PET_ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,39}")
+SAIU_DE_CASA = ("Fui!", "Já volto!", "Partiu visita!")
 SOBRE_O_TEMPO = re.compile(r"chuv|chov|tempo|clima|calor|frio|sol\b|guarda.chuva|temperatura|graus|nublad|garoa",
                            re.IGNORECASE)
 LOCAIS = {"127.0.0.1", "::1", "testclient"}
@@ -79,6 +88,15 @@ class ResumoDia(BaseModel):
     contagens: dict = Field(default_factory=dict)
 
 
+class Visitar(BaseModel):
+    para: str = Field(min_length=3, max_length=80)          # "casa:computador", de GET /api/vizinhos
+
+
+class FimDaVisita(BaseModel):
+    id: int = Field(ge=1)
+    emocao: str = Field(default="", max_length=20)
+
+
 class NovoEvento(BaseModel):
     tipo: str = "falar"
     texto: str = Field(default="", max_length=500)
@@ -94,6 +112,8 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.p
     conversa = Conversa(cfg.banco)
     mundo = Mundo(perfil, buscar_previsao)
     lembretes = lemb.Lembretes(cfg.banco, relogio)
+    vizinhos = viz.Vizinhanca(cfg.vizinhanca, relogio) if cfg.vizinhanca else None
+    casa = viz.id_da_casa(Path(cfg.banco).resolve())
 
     def fuso():
         return (perfil.ler() or {}).get("fuso") or FUSO_PADRAO
@@ -112,6 +132,55 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.p
         cliente = cliente if ID_COMPUTADOR.fullmatch(cliente) else ""
         nome = nome_de_usuario(request.headers.get("x-pestinha-quem", "")) if cfg.equipe else ""
         return cliente, nome
+
+    def morador(request):
+        """(cliente, nome para os vizinhos, personagem, recebe visitas) de quem fez o pedido."""
+        cliente, nome = quem_e(request)
+        pet = request.headers.get("x-pestinha-pet", "").strip().lower()
+        pet = pet if PET_ID.fullmatch(pet) else "bryan"
+        exibido = f"{nome or 'Alguém'} ({cfg.dono})" if cfg.equipe else cfg.dono
+        return cliente, exibido, pet, request.headers.get("x-pestinha-visitas", "") == "1"
+
+    def falas_da_visita(para_nome):
+        """(cumprimento, despedida) no jeito deste pet, pedidos ao Hermes; sem Hermes, frases prontas."""
+        pedido = (f"[Visita] Você está indo agora visitar o pet {viz.da(para_nome)}, na tela dela. Escreva duas "
+                  "falas curtas separadas por uma barra vertical: o que você diz ao chegar e o que diz ao ir embora.")
+        try:
+            partes = [acoes.limpar(x) for x in hermes.perguntar(cfg, pedido, []).split("|")]
+        except hermes.HermesErro:
+            partes = []
+        if len(partes) >= 2 and partes[0] and partes[1]:
+            return partes[0], partes[1]
+        return random.choice(viz.CUMPRIMENTOS), random.choice(viz.DESPEDIDAS)
+
+    def mexer_na_vizinhanca(request):
+        """A cada consulta: registra quem está em casa e põe na fila as chegadas e os retornos de visita."""
+        if vizinhos is None:
+            return
+        cliente, exibido, pet, recebe = morador(request)
+        if not cliente:
+            return                                   # pet antigo, sem id: não visita nem recebe
+        vizinhos.registrar(casa, cliente, exibido, pet, recebe)
+        for v in vizinhos.chegadas(casa, cliente):
+            eventos.adicionar("visita", {**v, "para": cliente})
+        for fala in vizinhos.retornos(casa, cliente):
+            eventos.adicionar("voltou", {"texto": fala, "para": cliente})
+
+    def comecar_visita(request, alvo):
+        """Começa a visita a `alvo` (um item de em_casa). Devolve o nome ou levanta HTTPException."""
+        cliente, exibido, pet, _recebe = morador(request)
+        if vizinhos is None or not cliente:
+            raise HTTPException(status_code=409, detail="Este pet ainda não sabe visitar ninguém.")
+        if not alvo["recebe"]:
+            raise HTTPException(status_code=409, detail=f"A casa {viz.da(alvo['nome'])} não está recebendo visitas.")
+        if vizinhos.ocupado(casa, cliente):
+            raise HTTPException(status_code=409, detail="Eu já estou no meio de uma visita!")
+        if vizinhos.ocupado(alvo["casa"], alvo["cliente"]):
+            raise HTTPException(status_code=409, detail=f"O pet {viz.da(alvo['nome'])} já está com visita.")
+        cumprimento, despedida = falas_da_visita(alvo["nome"])
+        vizinhos.comecar((casa, cliente, exibido), (alvo["casa"], alvo["cliente"], alvo["nome"]), pet,
+                         cumprimento, despedida)
+        return alvo["nome"]
 
     def marcar_lembretes(pedidos, cancelar, quem=""):
         """Cria e cancela o que o Hermes pediu. Devolve (frase de confirmação, se mexeu em algum)."""
@@ -151,8 +220,9 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.p
         return {"ok": True}
 
     @app.get("/api/eventos", dependencies=[Depends(autorizado)])
-    def listar(desde: int = Query(default=0, ge=0)):
+    def listar(request: Request, desde: int = Query(default=0, ge=0)):
         disparar_lembretes()
+        mexer_na_vizinhanca(request)
         lista, ultimo = eventos.depois_de(desde)
         return {"eventos": lista, "ultimo": ultimo}
 
@@ -187,6 +257,16 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.p
         resposta = {"resposta": texto or "…"}
         if acao:
             resposta["acao"] = acao
+        if vizinhos is not None and VISITAR.search(p.texto):     # "vai visitar a Talita"
+            cliente_eu = quem_e(request)[0]
+            alvo = vizinhos.achar(p.texto, menos=(casa, cliente_eu))
+            if alvo is None:
+                resposta["resposta"] = f"{resposta['resposta']} Mas não achei ninguém com esse nome em casa agora."
+            else:
+                try:
+                    resposta["visitar"] = {"nome": comecar_visita(request, alvo)}
+                except HTTPException as erro:
+                    resposta["resposta"] = f"{resposta['resposta']} {erro.detail}"
         if SOBRE_O_TEMPO.search(p.texto):                  # perguntou do tempo: ele "veste" o tempo de hoje
             efeitos = mundo.efeitos()
             if efeitos:
@@ -196,6 +276,31 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.p
     @app.post("/api/conversa/esquecer", dependencies=[Depends(autorizado)])
     def esquecer_conversa(request: Request):
         conversa.esquecer(quem_e(request)[0])
+        return {"ok": True}
+
+    @app.get("/api/vizinhos", dependencies=[Depends(autorizado)])
+    def listar_vizinhos(request: Request):
+        """Quem está em casa agora para visitar (sem você mesmo)."""
+        if vizinhos is None:
+            return {"vizinhos": []}
+        mexer_na_vizinhanca(request)
+        eu = (casa, quem_e(request)[0])
+        return {"vizinhos": [{"id": v["id"], "nome": v["nome"], "pet": v["pet"], "recebe": v["recebe"]}
+                             for v in vizinhos.em_casa(menos=eu)]}
+
+    @app.post("/api/visitar", dependencies=[Depends(autorizado)])
+    def visitar(v: Visitar, request: Request):
+        eu = (casa, quem_e(request)[0])
+        alvo = next((x for x in (vizinhos.em_casa(menos=eu) if vizinhos else []) if x["id"] == v.para), None)
+        if alvo is None:
+            raise HTTPException(status_code=404, detail="Não tem ninguém em casa lá agora.")
+        nome = comecar_visita(request, alvo)
+        return {"ok": True, "nome": nome, "fala": f"{random.choice(SAIU_DE_CASA)} Vou visitar o pet {viz.da(nome)}."}
+
+    @app.post("/api/visita/fim", dependencies=[Depends(autorizado)])
+    def fim_da_visita(f: FimDaVisita, request: Request):
+        if vizinhos is None or not vizinhos.terminar(f.id, casa, quem_e(request)[0], f.emocao):
+            raise HTTPException(status_code=404, detail="visita desconhecida")
         return {"ok": True}
 
     @app.get("/api/perfil", dependencies=[Depends(autorizado)])
