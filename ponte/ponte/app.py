@@ -40,6 +40,17 @@ log = logging.getLogger("ponte")
 SOBRE_O_TEMPO = re.compile(r"chuv|chov|tempo|clima|calor|frio|sol\b|guarda.chuva|temperatura|graus|nublad|garoa",
                            re.IGNORECASE)
 LOCAIS = {"127.0.0.1", "::1", "testclient"}
+ID_COMPUTADOR = re.compile(r"[0-9a-f]{32}")
+
+
+def nome_de_usuario(bruto):
+    """'sheila.alves' -> 'Sheila', 'talita_souza' -> 'Talita' (o usuário do Windows de quem pergunta)."""
+    usuario = str(bruto or "").strip().split("\\")[-1]                 # "DOMINIO\\joao" -> "joao"
+    primeiro = re.split(r"[._\-\s@]+", usuario)
+    nome = next((p for p in primeiro if p.isalpha()), "")
+    return nome[:20].capitalize()
+
+
 NAO_ENTENDI_LEMBRETE = ("Não entendi para quando é o lembrete. Fala tipo “me lembra às 16h de ligar” "
                         "ou “daqui a 30 min”.")
 
@@ -95,7 +106,14 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.p
             eventos.adicionar("falar", {"texto": fala, "efeitos": ["lembrete"]})
             conversa.anotar("assistant", fala)                  # dá para responder: "adia 10 min"
 
-    def marcar_lembretes(pedidos, cancelar):
+    def quem_e(request):
+        """(id do computador, nome de quem fala): o nome só no pet da equipe."""
+        cliente = request.headers.get("x-pestinha-cliente", "").strip().lower()
+        cliente = cliente if ID_COMPUTADOR.fullmatch(cliente) else ""
+        nome = nome_de_usuario(request.headers.get("x-pestinha-quem", "")) if cfg.equipe else ""
+        return cliente, nome
+
+    def marcar_lembretes(pedidos, cancelar, quem=""):
         """Cria e cancela o que o Hermes pediu. Devolve (frase de confirmação, se mexeu em algum)."""
         agora = dt.datetime.fromtimestamp(relogio(), ZoneInfo(fuso()))
         marcados, frases, mexeu = [], [], False
@@ -104,7 +122,7 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.p
             if alvo is None:
                 continue
             mexeu = True
-            if lembretes.criar(alvo, oque) is None:
+            if lembretes.criar(alvo, oque, quem) is None:
                 frases.append("Mas já tenho lembrete demais anotado!")
                 break
             marcados.append(lemb.descrever_horario(alvo, agora))
@@ -139,10 +157,12 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.p
         return {"eventos": lista, "ultimo": ultimo}
 
     @app.post("/api/perguntar", dependencies=[Depends(autorizado)])
-    def perguntar(p: Pergunta):
-        historico = conversa.recente()
+    def perguntar(p: Pergunta, request: Request):
+        cliente, nome = quem_e(request)
+        historico = conversa.recente(cliente)
         linhas = [mundo.contexto(), lembretes.contexto(fuso()),
-                  acoes.descrever_estado(p.estado.model_dump() if p.estado else None)]
+                  acoes.descrever_estado(p.estado.model_dump() if p.estado else None),
+                  f"[Quem está falando: {nome}]" if nome else ""]
         respondendo = p.respondendo.strip()
         lembra = any(m["role"] == "assistant" and m["content"] == respondendo for m in historico)
         if respondendo and not lembra:              # o post-it é antigo ou a memória curta já esqueceu
@@ -155,15 +175,15 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.p
             raise HTTPException(status_code=502, detail="o Hermes não respondeu agora")
         sem_lembretes, pedidos, cancelar = lemb.separar(bruta)
         texto, acao = acoes.separar_acao(sem_lembretes)
-        confirmacao, mexeu = marcar_lembretes(pedidos, cancelar)
+        confirmacao, mexeu = marcar_lembretes(pedidos, cancelar, nome)
         if confirmacao:
             texto = f"{texto} {confirmacao}".strip()
         elif not mexeu and lemb.pediu_lembrete(p.texto) and not texto.rstrip().endswith("?"):
             texto = NAO_ENTENDI_LEMBRETE                    # nunca promete lembrar sem ter marcado
         if respondendo and not lembra:
-            conversa.anotar("assistant", respondendo)
-        conversa.anotar("user", p.texto)
-        conversa.anotar("assistant", texto)
+            conversa.anotar("assistant", respondendo, cliente)
+        conversa.anotar("user", p.texto, cliente)
+        conversa.anotar("assistant", texto, cliente)
         resposta = {"resposta": texto or "…"}
         if acao:
             resposta["acao"] = acao
@@ -174,8 +194,8 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.p
         return resposta
 
     @app.post("/api/conversa/esquecer", dependencies=[Depends(autorizado)])
-    def esquecer_conversa():
-        conversa.esquecer()
+    def esquecer_conversa(request: Request):
+        conversa.esquecer(quem_e(request)[0])
         return {"ok": True}
 
     @app.get("/api/perfil", dependencies=[Depends(autorizado)])
@@ -196,8 +216,8 @@ def criar_app(cfg=None, geocodificar=clima.geocodificar, buscar_previsao=clima.p
         return dados
 
     @app.post("/api/dia", dependencies=[Depends(autorizado)])
-    def guardar_dia(r: ResumoDia):
-        diario.guardar_dia(r.data, limpar_resumo(r.model_dump()))
+    def guardar_dia(r: ResumoDia, request: Request):
+        diario.guardar_dia(r.data, limpar_resumo(r.model_dump()), quem_e(request)[0])
         return {"ok": True}
 
     @app.get("/api/diario", dependencies=[Depends(autorizado)])

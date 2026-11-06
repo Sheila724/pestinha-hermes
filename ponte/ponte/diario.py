@@ -47,12 +47,23 @@ class Diario:
         self._db = sqlite3.connect(str(caminho), check_same_thread=False)
         self._db.execute("CREATE TABLE IF NOT EXISTS diario_dias (data TEXT PRIMARY KEY, resumo TEXT NOT NULL)")
         self._db.execute("CREATE TABLE IF NOT EXISTS diario_paginas (data TEXT PRIMARY KEY, texto TEXT NOT NULL)")
+        self._db.execute("CREATE TABLE IF NOT EXISTS diario_computadores ("
+                         " data TEXT NOT NULL, cliente TEXT NOT NULL, resumo TEXT NOT NULL,"
+                         " PRIMARY KEY (data, cliente))")
         self._db.commit()
 
-    def guardar_dia(self, data, resumo):
+    def guardar_dia(self, data, resumo, cliente=""):
+        """
+        Guarda o resumo de um computador e soma todos os do dia em diario_dias (o que o Hermes lê).
+        Cada pet manda o acumulado dele: o resumo novo substitui só o daquele computador.
+        """
         with self._lock:
+            self._db.execute("INSERT OR REPLACE INTO diario_computadores (data, cliente, resumo) VALUES (?, ?, ?)",
+                             (data, cliente, json.dumps(resumo, ensure_ascii=False)))
+            todos = [json.loads(r) for (r,) in self._db.execute(
+                "SELECT resumo FROM diario_computadores WHERE data = ?", (data,))]
             self._db.execute("INSERT OR REPLACE INTO diario_dias (data, resumo) VALUES (?, ?)",
-                             (data, json.dumps(resumo, ensure_ascii=False)))
+                             (data, json.dumps(somar(todos), ensure_ascii=False)))
             self._db.commit()
 
     def dia(self, data):
@@ -74,6 +85,17 @@ class Diario:
             linhas = self._db.execute(
                 "SELECT data, texto FROM diario_paginas ORDER BY data DESC LIMIT ?", (quantas,)).fetchall()
         return [{"data": d, "texto": t} for d, t in linhas]
+
+
+def somar(resumos):
+    """Junta os resumos de vários computadores: minutos e contagens somados."""
+    total = {"emocoes": {}, "contagens": {}}
+    for r in resumos:
+        for parte in ("emocoes", "contagens"):
+            for nome, valor in (r.get(parte) or {}).items():
+                total[parte][nome] = total[parte].get(nome, 0) + valor
+    total["emocoes"] = {e: round(m, 1) for e, m in total["emocoes"].items()}
+    return total
 
 
 def limpar_resumo(bruto):

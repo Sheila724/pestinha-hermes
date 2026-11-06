@@ -117,3 +117,30 @@ ele não deve saber nada.
 - Cortar o acesso dela: troque o `PONTE_TOKEN` no `.env` dela e reinicie.
 - Desfazer tudo: `systemctl --user disable --now pestinha-ponte@pestinha2 pestinha-lado-de-fora@pestinha2.timer`,
   `hermes profile delete pestinha2`, apague o `.env` e o `.db` dela e o bloco do Caddyfile.
+
+## Pet de uma equipe
+
+O mesmo caminho serve para **um pet da equipe inteira**: um perfil do Hermes, uma ponte e um endereço para
+todo mundo, com o mesmo token. O que muda é o `.env` da ponte:
+
+```bash
+PONTE_EQUIPE=1
+PONTE_DONO=equipe do suporte
+PONTE_JEITO=suporte
+```
+
+Com `PONTE_EQUIPE=1`:
+
+- **Cada computador tem a sua conversa.** O pet manda um id aleatório do computador (`memory/hermes_cliente.txt`),
+  então o "e amanhã?" de uma pessoa não se mistura com a conversa de outra.
+- **O pet chama cada um pelo nome**, tirado do usuário do Windows (`sheila.alves` vira "Sheila").
+- **É da equipe:** avisos do tempo, sexta-feira e feriados, lembretes (com "pedido por Fulana") e o diário,
+  que soma o dia de todos os computadores. Qualquer um pode trocar a cidade e os horários no menu.
+- A memória longa do Hermes desse perfil é da equipe toda. A persona proíbe guardar senhas e dados de
+  clientes, mas vale combinar com a equipe de não mandar isso.
+
+Use outro nome de instância e outra porta, por exemplo `suporte`, porta 8767 na ponte e 8644 no Hermes:
+troque `pestinha2` por `suporte`, `8766` por `8767` e `8643` por `8644` nos passos 1 a 5. Antes, veja se a
+VPS tem memória para mais um Hermes (`free -h`; cada um usa algumas centenas de MB).
+
+O token é um só para a equipe: se alguém sair, troque o `PONTE_TOKEN` e passe o novo para quem fica.
