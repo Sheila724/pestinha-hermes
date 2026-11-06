@@ -1,15 +1,15 @@
 # Bilhetes que o Uptime cola quando está triste. Um por linha. Linhas com # são ignoradas.
 # Pode editar com o app rodando: ele relê o arquivo sozinho.
 
-ninguém olha meus alertas
-tô aqui igual servidor esquecido no rack
-meu ping tá sem resposta
-o plantão tá silencioso demais
-sou só mais um host sem monitoramento
-ninguém me documentou no Netbox
+ninguém abre chamado pra mim
+tô aqui igual chamado esquecido na fila
+meu telefone não toca
+o turno tá silencioso demais
+fiquei em espera. com musiquinha e tudo.
+ninguém me escreveu na base de conhecimento
 tô em modo de manutenção emocional
 alguém lembra que eu existo?
-fiquei sem link com você
+fiquei sem sinal com você
 timeout. de novo.
-pode deixar, eu fico de standby
-tô rodando, mas sem vontade
+pode deixar, eu fico aguardando retorno
+tô atendendo, mas sem vontade

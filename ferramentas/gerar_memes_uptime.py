@@ -1,5 +1,5 @@
 """
-Desenha os memes do Uptime em pets/uptime/memes/: cartões de status de NOC, um para cada situação.
+Desenha os memes do Uptime em pets/uptime/memes/: cartões de status do suporte, um para cada situação.
 
 Desenho feito por código (sem imagem de terceiros). Rode de novo para refazer os arquivos;
 para mudar as frases, edite a lista CARTOES e rode outra vez.
@@ -27,19 +27,19 @@ STATUS = {               # rótulo, cor
 
 # (pasta da emoção, arquivo, status, frase grande, frase pequena, forma do gráfico)
 CARTOES = [
-    ("feliz", "tudo_verde", "ok", "TUDO VERDE NO DASHBOARD", "nenhum alerta há 3 horas", "calmo"),
-    ("feliz", "backup_ok", "ok", "BACKUP CONCLUÍDO", "e testado. de verdade.", "calmo"),
+    ("feliz", "fila_zerada", "ok", "FILA ZERADA", "nenhum chamado aberto. por enquanto.", "calmo"),
     ("feliz", "chamado_fechado", "ok", "CHAMADO RESOLVIDO NO 1º CONTATO", "o cliente até agradeceu", "calmo"),
-    ("contente", "link_ok", "ok", "LINK RESTABELECIDO", "latência: 2 ms", "volta"),
-    ("curioso", "trafego", "atencao", "TRÁFEGO SUBIU DO NADA", "investigando...", "pico"),
-    ("bravo", "deploy_sexta", "critico", "DEPLOY NA SEXTA ÀS 17H58", "quem aprovou essa change?", "pico"),
-    ("bravo", "cabo", "critico", "CABO SEM ETIQUETA", "de novo.", "pico"),
-    ("bravo", "servidor_errado", "critico", "REINICIARAM O SERVIDOR ERRADO", "era o rack do lado", "queda"),
-    ("triste", "host", "sem_dados", "HOST INACESSÍVEL", "ninguém respondeu meu ping", "queda"),
-    ("triste", "disco", "atencao", "DISCO DEGRADADO", "e eu também", "queda"),
-    ("trabalhando", "fila", "atencao", "47 ALERTAS NA FILA", "um café e a gente resolve", "serra"),
-    ("trabalhando", "janela", "atencao", "JANELA DE MANUTENÇÃO EM ANDAMENTO", "não encosta em nada", "calmo"),
-    ("trabalhando", "netbox", "ok", "DOCUMENTANDO NO NETBOX", "rack por rack, cabo por cabo", "serra"),
+    ("feliz", "elogio", "ok", "CLIENTE MANDOU ELOGIO", "print e emoldura", "calmo"),
+    ("contente", "reiniciou", "ok", "REINICIOU E FUNCIONOU", "como sempre", "volta"),
+    ("curioso", "erro_novo", "atencao", "ERRO QUE NINGUÉM VIU AINDA", "investigando...", "pico"),
+    ("bravo", "sem_print", "critico", "“NÃO FUNCIONA”. SEM PRINT.", "nem mensagem de erro", "pico"),
+    ("bravo", "nao_mexi", "critico", "“NÃO MEXI EM NADA”", "mexeu.", "pico"),
+    ("bravo", "urgente", "critico", "TUDO URGENTE ÀS 17H58 DE SEXTA", "todos os 12 chamados", "queda"),
+    ("triste", "sem_retorno", "sem_dados", "CLIENTE SUMIU", "aguardando retorno há 3 dias", "queda"),
+    ("triste", "bloqueado", "atencao", "USUÁRIO BLOQUEADO POR TENTATIVAS", "e eu também", "queda"),
+    ("trabalhando", "fila", "atencao", "47 CHAMADOS NA FILA", "um café e a gente resolve", "serra"),
+    ("trabalhando", "acesso_remoto", "atencao", "ACESSO REMOTO EM ANDAMENTO", "não mexe no mouse, por favor", "calmo"),
+    ("trabalhando", "tutorial", "ok", "ESCREVENDO TUTORIAL", "passo a passo, com print", "serra"),
 ]
 
 
@@ -87,10 +87,10 @@ def desenhar(status, grande, pequena, forma, semente):
     p.setBrush(fundo)
     p.drawRoundedRect(cartao, 18, 18)
 
-    # cabeçalho: "NOC · plantão" e o selo de status
+    # cabeçalho: "SUPORTE · fila" e o selo de status
     p.setPen(QColor("#8b949e"))
     p.setFont(fonte(17, negrito=False))
-    p.drawText(QRectF(28, 22, 260, 28), Qt.AlignLeft | Qt.AlignVCenter, "NOC · plantão")
+    p.drawText(QRectF(28, 22, 260, 28), Qt.AlignLeft | Qt.AlignVCenter, "SUPORTE · fila")
     p.setFont(fonte(16))
     largura_selo = p.fontMetrics().horizontalAdvance(rotulo) + 34
     selo = QRectF(LARGURA - 28 - largura_selo, 22, largura_selo, 28)
@@ -147,7 +147,7 @@ def desenhar(status, grande, pequena, forma, semente):
     p.setBrush(Qt.NoBrush)
     p.drawPath(caminho)
 
-    # LEDs de rack no rodapé
+    # luzinhas de status no rodapé
     for k in range(12):
         aceso = rng.random() < (0.8 if status == "ok" else 0.45)
         led = QColor(cor) if aceso else QColor("#26302a")

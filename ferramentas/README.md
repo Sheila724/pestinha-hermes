@@ -17,7 +17,7 @@ python ferramentas/gerar_doc_rede.py
 |---|---|
 | `fuzz_pestinha.py` | Roda o app inteiro com relógio virtual e ações aleatórias, checando invariantes. |
 | `gerar_doc_rede.py` | Gera docs/REDE_NEURAL.md a partir do código (canais, interneurônios, motores, conexões e limiares). |
-| `gerar_memes_uptime.py` | Desenha os memes do Uptime em pets/uptime/memes/: cartões de status de NOC, um para cada situação. |
+| `gerar_memes_uptime.py` | Desenha os memes do Uptime em pets/uptime/memes/: cartões de status do suporte, um para cada situação. |
 | `gerar_panfleto.py` | Desenha pets/jorge/bolinha_papel.png: um panfleto de mentoria amassado, que o Jorge atira na revolução. |
 | `gerar_readmes.py` | Gera pestinha/README.md e o README de cada camada a partir das docstrings dos módulos. |
 | `medir_cartazes.py` | Mede se cada frase do cartazes.txt de cada pet cabe na placa em que aparece, com as fontes de verdade. |

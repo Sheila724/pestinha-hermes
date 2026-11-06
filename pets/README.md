@@ -42,9 +42,9 @@ de outro pet.
 ## Personagens que já existem
 
 - **Bryan** (`bryan.json`, `bryan/`): o original.
-- **Uptime** (`uptime.json`, `uptime/`): plantonista de data center. Frases de plantão, NOC, chamados e sala
-  fria; e-mail e navegador contam como trabalho; trabalha num rack em vez do notebook; olhos de LED verde.
-  Recadinhos próprios do e-mail e do navegador. Memes em forma de cartão de status do NOC
+- **Uptime** (`uptime.json`, `uptime/`): analista de suporte técnico. Frases de chamados, clientes, fila,
+  SLA e "já reiniciou?"; e-mail e navegador contam como trabalho; trabalha num rack em vez do notebook; olhos
+  de LED verde. Recadinhos próprios do e-mail e do navegador. Memes em forma de cartão de status do suporte
   (`uptime/memes/`), desenhados por `ferramentas/gerar_memes_uptime.py`.
 - **Jorge** (`jorge.json`, `jorge/`): coach trambiqueiro. Mais insistente quando ignorado, muito animado
   com atenção, desesperado quando dispensam as coisas dele e quase nunca triste. O panfleto que ele atira

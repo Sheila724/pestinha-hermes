@@ -1,5 +1,5 @@
 """
-Uptime, o plantonista de data center: Thunderbird, e-mail e navegador como trabalho, recadinhos por programa, rack e memes.
+Uptime, o analista de suporte: Thunderbird, e-mail e navegador como trabalho, recadinhos por programa, rack e memes.
 
 - Thunderbird reconhecido (categoria EMAIL);
 - campo "trabalho" no pets/<pet>.json: navegador e e-mail contam como trabalho para aquele pet;

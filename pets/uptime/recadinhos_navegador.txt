@@ -1,21 +1,19 @@
 # Recadinhos do Uptime quando o navegador está aberto. Um por linha. # é comentário.
 # Aparecem logo que você abre o navegador (no máximo um a cada 20 min) e às vezes no meio do dia.
 
-o dashboard tá todo verde. desconfiei.
-esse gráfico de tráfego subiu do nada...
-quantas abas de painel abertas? eu contei 37.
-atualiza o Netbox enquanto lembra
+o portal de chamados tá carregando...
+quantas abas de chamado abertas? eu contei 37.
 o chamado tá aberto faz quanto tempo?
 lembra de fechar o chamado com a solução
-F5 no Zabbix não resolve o problema
-painel vermelho? respira e lê o alerta inteiro
 googlou o erro? já tem post de 2014 com a resposta
-essa aba do fornecedor ainda tá carregando?
 salvou a senha no cofre ou no post-it?
 SLA tá correndo, hein
-painel do Proxmox: tudo running? 👀
-o storage tá enchendo. só avisando.
 pesquisa no histórico de chamados antes
 "ERR_CONNECTION_TIMED_OUT" é tão poético
-o Nextcloud do cliente tá sincronizando?
-cuidado com o print, tem IP de cliente aí
+pede pro cliente testar numa aba anônima
+limpa o cache antes de escalar pro N2
+o tutorial da base de conhecimento tá atualizado?
+cuidado com o print, tem dado de cliente aí
+a página do fornecedor ainda tá carregando?
+"limpa os cookies" resolve mais do que parece
+o cliente mandou um link estranho? cuidado.
